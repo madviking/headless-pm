@@ -172,6 +172,8 @@ fi
 # Check port availability
 PORT=${SERVICE_PORT:-6969}
 MCP_PORT=${MCP_PORT:-6968}
+DASHBOARD_PORT=${DASHBOARD_PORT:-3001}
+
 log_info "Checking if port $PORT is available..."
 if lsof -i :$PORT >/dev/null 2>&1; then
     log_warning "Port $PORT is already in use"
@@ -188,6 +190,14 @@ else
     log_success "MCP port $MCP_PORT is available"
 fi
 
+log_info "Checking if dashboard port $DASHBOARD_PORT is available..."
+if lsof -i :$DASHBOARD_PORT >/dev/null 2>&1; then
+    log_warning "Dashboard port $DASHBOARD_PORT is already in use"
+    log_info "You may want to stop the existing service or use a different port"
+else
+    log_success "Dashboard port $DASHBOARD_PORT is available"
+fi
+
 # Function to start MCP server in background
 start_mcp_server() {
     log_info "Starting MCP SSE server on port $MCP_PORT..."
@@ -196,12 +206,59 @@ start_mcp_server() {
     log_success "MCP SSE server started on port $MCP_PORT (PID: $MCP_PID)"
 }
 
+# Function to start dashboard in background
+start_dashboard() {
+    # Check if Node.js is installed
+    if ! command -v node >/dev/null 2>&1; then
+        log_warning "Node.js not found. Dashboard requires Node.js 18+ to run."
+        log_info "Please install Node.js from https://nodejs.org/"
+        return
+    fi
+    
+    # Check Node version
+    NODE_VERSION=$(node --version | cut -d'v' -f2)
+    NODE_MAJOR=$(echo $NODE_VERSION | cut -d'.' -f1)
+    if [ "$NODE_MAJOR" -lt 18 ]; then
+        log_warning "Node.js 18+ required for dashboard. Found: v$NODE_VERSION"
+        return
+    fi
+    
+    if [ -d "dashboard" ]; then
+        log_info "Starting dashboard on port $DASHBOARD_PORT..."
+        cd dashboard
+        
+        # Check if node_modules exists
+        if [ ! -d "node_modules" ]; then
+            log_warning "Dashboard dependencies not installed. Installing..."
+            npm install >/dev/null 2>&1
+            log_success "Dashboard dependencies installed"
+        fi
+        
+        # Start the dashboard
+        npm run dev 2>&1 | sed 's/^/[DASHBOARD] /' &
+        DASHBOARD_PID=$!
+        cd ..
+        log_success "Dashboard started on port $DASHBOARD_PORT (PID: $DASHBOARD_PID)"
+    else
+        log_warning "Dashboard directory not found. Skipping dashboard startup."
+        log_info "To install the dashboard, run: npx create-next-app@latest dashboard"
+    fi
+}
+
 # Function to cleanup on exit
 cleanup() {
     log_info "Shutting down..."
     if [ ! -z "$MCP_PID" ]; then
         kill $MCP_PID 2>/dev/null || true
         log_info "MCP server stopped"
+    fi
+    if [ ! -z "$DASHBOARD_PID" ]; then
+        kill $DASHBOARD_PID 2>/dev/null || true
+        log_info "Dashboard stopped"
+    fi
+    if [ ! -z "$API_PID" ]; then
+        kill $API_PID 2>/dev/null || true
+        log_info "API server stopped"
     fi
     exit 0
 }
@@ -215,6 +272,7 @@ echo -e "${GREEN}"
 echo "🌟 Starting services..."
 echo "📚 API Documentation: http://localhost:$PORT/api/v1/docs"
 echo "🔌 MCP HTTP Server: http://localhost:$MCP_PORT"
+echo "🖥️  Web Dashboard: http://localhost:$DASHBOARD_PORT"
 echo "📊 CLI Dashboard: python -m src.cli.main dashboard"
 echo "🛑 Stop servers: Ctrl+C"
 echo -e "${NC}"
@@ -222,10 +280,13 @@ echo -e "${NC}"
 # Start MCP server in background
 start_mcp_server
 
-# Start API server in foreground
+# Start dashboard in background
+start_dashboard
+
+# Start API server
 log_info "Starting API server on port $PORT..."
 uvicorn src.main:app --reload --port $PORT --host 0.0.0.0 &
 API_PID=$!
 
-# Wait for API server process
-wait $API_PID
+# Wait for all processes
+wait $API_PID $MCP_PID $DASHBOARD_PID

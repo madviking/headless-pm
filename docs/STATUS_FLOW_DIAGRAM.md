@@ -4,24 +4,20 @@
 
 ```mermaid
 graph LR
-    CREATED[CREATED<br/>New Task] -->|Architect/PM Approves| APPROVED[APPROVED<br/>Ready for Dev]
-    CREATED -->|Architect/PM Rejects| CREATED
-    
-    APPROVED -->|Developer Locks| UNDER_WORK[UNDER_WORK<br/>In Development]
+    CREATED[CREATED<br/>New Task] -->|Developer Picks Up| UNDER_WORK[UNDER_WORK<br/>In Development]
     
     UNDER_WORK -->|Dev Complete| DEV_DONE[DEV_DONE<br/>Ready for QA]
     UNDER_WORK -->|Blocked| UNDER_WORK
     
     DEV_DONE -->|QA Starts Testing| QA_TESTING[UNDER_WORK<br/>QA Testing]
     QA_TESTING -->|Tests Pass| QA_DONE[QA_DONE<br/>Testing Complete]
-    QA_TESTING -->|Tests Fail| APPROVED
+    QA_TESTING -->|Tests Fail| CREATED
     
     QA_DONE -->|Docs Updated| DOC_DONE[DOCUMENTATION_DONE<br/>Docs Complete]
     
     DOC_DONE -->|Code Merged| COMMITTED[COMMITTED<br/>In Production]
     
     style CREATED fill:#ff9999
-    style APPROVED fill:#99ccff
     style UNDER_WORK fill:#ffcc99
     style DEV_DONE fill:#99ff99
     style QA_TESTING fill:#ffcc99
@@ -34,36 +30,34 @@ graph LR
 
 ### Architect/PM View
 ```
-CREATED → [Evaluate] → APPROVED or REJECTED
+CREATED → UNDER_WORK → DEV_DONE → [Wait for QA] → COMMITTED
 ```
-- Only work with CREATED tasks
-- Use `/api/v1/tasks/{id}/evaluate` endpoint
-- Cannot directly change status
+- Pick up CREATED tasks like any developer
+- Also can create epics, features, and manage other agents
 
 ### Developer View (Frontend/Backend)
 ```
-APPROVED → UNDER_WORK → DEV_DONE → [Wait for QA] → COMMITTED
+CREATED → UNDER_WORK → DEV_DONE → [Wait for QA] → COMMITTED
 ```
-- Pick up APPROVED tasks
+- Pick up CREATED tasks matching role and skill level
 - Lock before starting work
 - Mark DEV_DONE when ready for testing
 - Mark COMMITTED after merge
 
 ### QA View
 ```
-DEV_DONE → UNDER_WORK → QA_DONE or APPROVED (if failed)
+DEV_DONE → UNDER_WORK → QA_DONE or CREATED (if failed)
 ```
 - Pick up DEV_DONE tasks
 - Test thoroughly
 - Mark QA_DONE if passes
-- Send back to APPROVED if fails
+- Send back to CREATED if fails
 
 ## Status Ownership
 
 | Status | Who Can Set | When to Set |
 |--------|-------------|-------------|
-| CREATED | Any agent | When creating a new task |
-| APPROVED | Architect/PM only | After evaluating task positively |
+| CREATED | Any agent | When creating a new task or QA fails testing |
 | UNDER_WORK | Developer/QA | When starting work on a task |
 | DEV_DONE | Developer | When code is complete and tested |
 | QA_DONE | QA Engineer | When all tests pass |
@@ -82,17 +76,17 @@ DEV_DONE → UNDER_WORK → QA_DONE or APPROVED (if failed)
 
 ### Happy Path
 ```
-CREATED → APPROVED → UNDER_WORK → DEV_DONE → QA_DONE → DOCUMENTATION_DONE → COMMITTED
+CREATED → UNDER_WORK → DEV_DONE → QA_DONE → DOCUMENTATION_DONE → COMMITTED
 ```
 
 ### QA Finds Bugs
 ```
-DEV_DONE → UNDER_WORK (QA) → APPROVED → UNDER_WORK (Dev) → DEV_DONE
+DEV_DONE → UNDER_WORK (QA) → CREATED → UNDER_WORK (Dev) → DEV_DONE
 ```
 
-### Task Rejected by Architect
+### Senior Dev Takes Junior Task (No Junior Devs Available)
 ```
-CREATED → CREATED (with rejection feedback) → [Updated] → APPROVED
+CREATED (junior task) → UNDER_WORK (senior dev) → DEV_DONE → QA_DONE → COMMITTED
 ```
 
 ### Developer Blocked
@@ -116,11 +110,12 @@ PUT /api/v1/tasks/123/status?agent_id=backend_dev_001
 }
 ```
 
-### Evaluate Task (Architect/PM)
+### Lock and Start Task (Any Developer)
 ```bash
-POST /api/v1/tasks/123/evaluate?agent_id=architect_001
+POST /api/v1/tasks/123/lock?agent_id=backend_dev_001
+PUT /api/v1/tasks/123/status?agent_id=backend_dev_001
 {
-  "approved": true,
-  "comment": "Well structured task, clear requirements"
+  "status": "under_work",
+  "notes": "Starting implementation"
 }
 ```

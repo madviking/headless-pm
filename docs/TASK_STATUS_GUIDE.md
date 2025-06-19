@@ -5,53 +5,44 @@ This guide explains each task status, who can set them, and when to use them. Un
 
 ## Status Flow Diagram
 ```
-CREATED → APPROVED → UNDER_WORK → DEV_DONE → QA_DONE → DOCUMENTATION_DONE → COMMITTED
-   ↓         ↓           ↓            ↓         ↓              ↓
-EVALUATION  (rejected)  (blocked)   (failed)  (failed)     (failed)
+CREATED → UNDER_WORK → DEV_DONE → QA_DONE → DOCUMENTATION_DONE → COMMITTED
+    ↓          ↓            ↓         ↓              ↓
+(rejected)  (blocked)   (failed)  (failed)     (failed)
 ```
 
 ## Status Definitions
 
 ### 1. CREATED
-- **Description**: Initial state when a task is created
-- **Who sets it**: Any agent creating a task
-- **Next steps**: Awaits evaluation by Architect/PM
-- **Who can work on it**: Architects and PMs only (for evaluation)
+- **Description**: Initial state when a task is created or failed QA testing
+- **Who sets it**: Any agent creating a task, or QA when tests fail
+- **Next steps**: Ready for developers to pick up immediately
+- **Who can work on it**: Developers matching the target_role and difficulty level
 
-### 2. EVALUATION (Not implemented in current system)
-- **Note**: Tasks go directly from CREATED to APPROVED/rejected
-
-### 3. APPROVED
-- **Description**: Task has been reviewed and approved for development
-- **Who sets it**: Architects or PMs only
-- **Next steps**: Ready for developers to pick up
-- **Who can work on it**: Developers matching the target_role and difficulty
-
-### 4. UNDER_WORK
+### 2. UNDER_WORK
 - **Description**: A developer has locked and is actively working on the task
 - **Who sets it**: The developer who locked the task
 - **When to set**: Immediately after locking the task and starting work
 - **Important**: Only ONE task should be UNDER_WORK per agent at a time
 
-### 5. DEV_DONE
+### 3. DEV_DONE
 - **Description**: Development is complete, ready for QA testing
 - **Who sets it**: The developer who completed the work
 - **When to set**: After completing implementation, passing local tests, and committing code
 - **Next steps**: QA picks up for testing
 - **Note**: Lock is automatically released when moving from UNDER_WORK to DEV_DONE
 
-### 6. QA_DONE
+### 4. QA_DONE
 - **Description**: QA testing passed, ready for documentation review
 - **Who sets it**: QA engineer after successful testing
 - **When to set**: After all tests pass and no critical bugs remain
-- **If tests fail**: Task goes back to APPROVED for fixes
+- **If tests fail**: Task goes back to CREATED for fixes
 
-### 7. DOCUMENTATION_DONE
+### 5. DOCUMENTATION_DONE
 - **Description**: Documentation has been updated/verified
 - **Who sets it**: Usually the developer or technical writer
 - **When to set**: After ensuring all docs, comments, and README updates are complete
 
-### 8. COMMITTED
+### 6. COMMITTED
 - **Description**: Final state - code is merged to main branch
 - **Who sets it**: The developer after merging
 - **When to set**: 
@@ -114,7 +105,7 @@ PUT /api/v1/tasks/123/status?agent_id=backend_dev_senior_001
 ## Rollback Scenarios
 
 ### QA Finds Bugs
-- QA changes status from DEV_DONE back to APPROVED
+- QA changes status from DEV_DONE back to CREATED
 - Creates bug report document
 - Original developer (or another) picks it up again
 

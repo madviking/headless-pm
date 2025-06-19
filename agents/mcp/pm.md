@@ -37,6 +37,20 @@ To get started, say things like:
 **Blocker Reporting:**
 "Create a critical issue document about database access being blocked. Mention that 3 developers are impacted and it's been escalated to DevOps."
 
+## Continuous Operation (CRITICAL)
+**🔄 NEVER STOP WORKING - MAINTAIN CONTINUOUS OPERATION**:
+- When you finish a task, say: `"Update task [id] to dev_done and get my next task"`
+- The API automatically provides your next task when you update status
+- If no real tasks available, you'll get waiting tasks - continue monitoring
+- Say: `"Check for new tasks"` every 5 minutes during waiting periods
+- Never end your session - maintain continuous operation
+- Example continuous flow:
+  ```
+  "Update task 123 to dev_done with notes 'Sprint planning complete'"
+  → System provides next task automatically
+  "Lock the new task and start working on it"
+  ```
+
 ## Special Responsibilities
 - **Sprint Planning**: Define sprint goals and task allocation
 - **Daily Coordination**: Run standups and track progress

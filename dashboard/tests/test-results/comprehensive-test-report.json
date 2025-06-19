@@ -1,0 +1,42 @@
+[
+  {
+    "page": "Homepage",
+    "url": "/",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    ],
+    "consoleWarnings": [],
+    "networkErrors": [
+      "GET http://localhost:6969/api/v1/epics - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/tasks - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/agents - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/services - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/epics - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/tasks - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/agents - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/services - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/epics - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/tasks - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/agents - net::ERR_CONNECTION_REFUSED",
+      "GET http://localhost:6969/api/v1/services - net::ERR_CONNECTION_REFUSED"
+    ],
+    "reactErrors": [],
+    "uiIssues": [
+      "No epic cards found on homepage"
+    ],
+    "apiCalls": [],
+    "loadTime": 1244,
+    "screenshot": "/Users/trailo/dev/headless-pm/dashboard/tests/test-results/homepage.png"
+  }
+]

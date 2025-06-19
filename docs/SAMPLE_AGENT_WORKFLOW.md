@@ -107,7 +107,7 @@ curl http://localhost:8000/api/tasks/next \
   "target_role": "frontend_dev",
   "difficulty": "senior",
   "branch": "feature/user-auth",
-  "status": "approved",
+  "status": "created",
   "locked_by": null,
   "created_at": "2024-01-15T10:00:00Z"
 }
@@ -173,29 +173,19 @@ curl -X PUT http://localhost:8000/api/tasks/42/status \
 
 The cycle repeats - agent asks for next task and continues working.
 
-## Architect/PM Task Evaluation Workflow
+## Simplified Task Workflow (No Approval Needed)
 
-### 1. PM Gets Created Tasks to Evaluate
+In the new simplified workflow, developers can pick up tasks directly from `created` status without needing PM approval. This eliminates bottlenecks and speeds up development.
 
-```bash
-curl http://localhost:8000/api/tasks/next \
-  -H "X-API-Key: pm-api-key-789"
-```
+### PM/Architect Role
 
-**Response:**
-```json
-{
-  "id": 41,
-  "title": "Create login API endpoint",
-  "description": "Need POST /api/auth/login endpoint that accepts email/password and returns JWT token",
-  "created_by": "frontend_dev",
-  "target_role": "backend_dev",
-  "difficulty": "senior",
-  "status": "created"
-}
-```
+PMs and Architects focus on:
+- Creating well-defined tasks
+- Providing guidance through comments
+- Monitoring progress
+- Removing blockers
 
-### 2. PM Adds Comments
+They can still add comments to tasks for clarification:
 
 ```bash
 curl -X POST http://localhost:8000/api/tasks/41/comment \
@@ -204,26 +194,6 @@ curl -X POST http://localhost:8000/api/tasks/41/comment \
   -d '{
     "comment": "Good task description. Please also include rate limiting and proper error responses."
   }'
-```
-
-### 3. PM Evaluates Task
-
-```bash
-curl -X POST http://localhost:8000/api/tasks/41/evaluate \
-  -H "X-API-Key: pm-api-key-789" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "approved": true,
-    "comments": "Approved with additional requirements noted above"
-  }'
-```
-
-**Response:**
-```json
-{
-  "status": "evaluated",
-  "approved": true
-}
 ```
 
 ## QA Agent Workflow
@@ -258,22 +228,25 @@ curl -X PUT http://localhost:8000/api/tasks/42/status \
 ## Complete Status Flow
 
 ```
-created → evaluation → approved → under_work (dev) → dev_done → under_work (qa) → qa_done → documentation_done → committed
+created → under_work (dev) → dev_done → under_work (qa) → qa_done → documentation_done → committed
 ```
 
 Task routing by role:
-- **PM/Architect**: Review `created` tasks for evaluation
-- **Developers**: Pick up `approved` tasks matching their skill level
+- **PM/Architect**: Create tasks and provide guidance
+- **Developers**: Pick up `created` tasks matching their skill level (no approval needed)
 - **QA**: Pick up `dev_done` tasks
 - **Technical Writers**: Pick up `qa_done` tasks
+
+### Failed QA Process
+When QA fails, tasks return to `created` status and developers can pick them up directly for fixes.
 
 ## Difficulty Level Matching
 
 - **Junior agents**: Can only work on `junior` level tasks
-- **Senior agents**: Can work on `junior` and `senior` tasks  
+- **Senior agents**: Can work on `junior` and `senior` tasks (can take junior tasks when no junior developers available)
 - **Principal agents**: Can work on all difficulty levels
 
-Example: A junior backend developer registering will only receive junior-level backend tasks.
+Example: A junior backend developer registering will only receive junior-level backend tasks. Senior developers can step in to help with junior tasks when needed.
 
 ## CLI Usage for Monitoring
 

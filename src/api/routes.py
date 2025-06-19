@@ -6,15 +6,15 @@ import os
 
 from src.models.database import get_session
 from src.api.dependencies import get_db
-from src.models.models import Agent, Task, Epic, Feature, Changelog
-from src.models.enums import TaskStatus, AgentRole, DifficultyLevel
+from src.models.models import Agent, Task, Epic, Feature, Changelog, Mention, Document
+from src.models.enums import TaskStatus, AgentRole, DifficultyLevel, TaskType
 from src.api.schemas import (
-    AgentRegisterRequest, AgentResponse,
+    AgentRegisterRequest, AgentResponse, AgentRegistrationResponse,
     EpicCreateRequest, FeatureCreateRequest,
-    TaskCreateRequest, TaskResponse, TaskStatusUpdateRequest,
+    TaskCreateRequest, TaskResponse, TaskStatusUpdateRequest, TaskStatusUpdateResponse,
     TaskCommentRequest,
     ProjectContextResponse, EpicResponse, FeatureResponse,
-    ChangelogResponse
+    ChangelogResponse, MentionResponse
 )
 from src.api.dependencies import verify_api_key
 from src.services.mention_service import create_mentions_for_task
@@ -23,9 +23,110 @@ from pathlib import Path
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 
-@router.post("/register", response_model=AgentResponse, 
+def get_next_task_for_agent(agent: Agent, db: Session) -> Optional[TaskResponse]:
+    """Helper function to get the next available task for an agent"""
+    # Determine which statuses to look for based on role
+    if agent.role == AgentRole.QA:
+        # QA tests dev_done tasks
+        query = select(Task).where(
+            Task.status == TaskStatus.DEV_DONE,
+            Task.locked_by_id.is_(None)
+        )
+    else:
+        # Developers (including PM/Architect) work on created tasks
+        # Check if there are available agents at lower skill levels for this role
+        from datetime import timedelta
+        cutoff_time = datetime.utcnow() - timedelta(minutes=30)  # Consider agent active if seen in last 30 min
+        
+        # Get active agents for this role at different skill levels
+        active_agents = db.exec(
+            select(Agent).where(
+                Agent.role == agent.role,
+                Agent.last_seen > cutoff_time
+            )
+        ).all()
+        
+        # Determine available skill levels
+        active_skill_levels = {ag.level for ag in active_agents}
+        
+        # Define skill hierarchy
+        skill_hierarchy = [DifficultyLevel.JUNIOR, DifficultyLevel.SENIOR, DifficultyLevel.PRINCIPAL]
+        current_skill_index = skill_hierarchy.index(agent.level)
+        
+        # Determine which difficulties this agent can work on
+        allowed_difficulties = []
+        for i, skill in enumerate(skill_hierarchy):
+            if i <= current_skill_index:  # Can always do tasks at or below their level
+                allowed_difficulties.append(skill)
+            elif skill not in active_skill_levels:  # Can do higher-level tasks if no one else available
+                continue
+        
+        # For architects and PMs, also include legacy APPROVED status for backward compatibility
+        if agent.role in [AgentRole.ARCHITECT, AgentRole.PM]:
+            query = select(Task).where(
+                (Task.status == TaskStatus.CREATED) | (Task.status == TaskStatus.APPROVED),
+                Task.target_role == agent.role,
+                Task.difficulty.in_(allowed_difficulties),
+                Task.locked_by_id.is_(None)
+            )
+        else:
+            query = select(Task).where(
+                (Task.status == TaskStatus.CREATED) | (Task.status == TaskStatus.APPROVED),
+                Task.target_role == agent.role,
+                Task.difficulty.in_(allowed_difficulties),
+                Task.locked_by_id.is_(None)
+            )
+    
+    # Get oldest unlocked task
+    task = db.exec(query.order_by(Task.created_at)).first()
+    
+    if task:
+        return TaskResponse(
+            id=task.id,
+            feature_id=task.feature_id,
+            title=task.title,
+            description=task.description,
+            created_by=task.creator.agent_id,
+            target_role=task.target_role,
+            difficulty=task.difficulty,
+            complexity=task.complexity,
+            branch=task.branch,
+            status=task.status,
+            locked_by=None,
+            locked_at=None,
+            notes=task.notes,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+            task_type=TaskType.REGULAR
+        )
+    
+    return None
+
+def create_waiting_task(agent: Agent, poll_interval: int = 300) -> TaskResponse:
+    """Create a synthetic waiting task for continuous polling"""
+    return TaskResponse(
+        id=-1,  # Negative ID to indicate synthetic task
+        feature_id=-1,
+        title=f"Monitoring for new {agent.role.value} tasks",
+        description=f"No active tasks available. Polling for new {agent.role.value} tasks every {poll_interval} seconds. This is a synthetic task to keep agents active.",
+        created_by="system",
+        target_role=agent.role,
+        difficulty=agent.level,
+        complexity="minor",
+        branch="main",
+        status=TaskStatus.UNDER_WORK,
+        locked_by=agent.agent_id,
+        locked_at=datetime.utcnow(),
+        notes=f"Poll interval: {poll_interval} seconds",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+        task_type=TaskType.WAITING,
+        poll_interval=poll_interval
+    )
+
+@router.post("/register", response_model=AgentRegistrationResponse, 
     summary="Register an agent",
-    description="Register a new agent or update existing agent's last seen timestamp")
+    description="Register a new agent or update existing agent's last seen timestamp. Returns agent info, next available task, and any unread mentions.")
 def register_agent(request: AgentRegisterRequest, db: Session = Depends(get_session)):
     # Check if agent exists
     agent = db.exec(select(Agent).where(Agent.agent_id == request.agent_id)).first()
@@ -46,7 +147,58 @@ def register_agent(request: AgentRegisterRequest, db: Session = Depends(get_sess
     
     db.commit()
     db.refresh(agent)
-    return agent
+    
+    # Get next available task for this agent (or waiting task if none available)
+    next_task = get_next_task_for_agent(agent, db)
+    if not next_task:
+        next_task = create_waiting_task(agent, poll_interval=300)
+    
+    # Get unread mentions for this agent
+    mention_query = select(Mention).where(
+        Mention.mentioned_agent_id == agent.agent_id,
+        Mention.is_read == False
+    ).order_by(Mention.created_at.desc()).limit(10)
+    mentions_data = db.exec(mention_query).all()
+    
+    # Build mention responses with document/task titles
+    mentions = []
+    for mention in mentions_data:
+        response = MentionResponse(
+            id=mention.id,
+            document_id=mention.document_id,
+            task_id=mention.task_id,
+            mentioned_agent_id=mention.mentioned_agent_id,
+            created_by=mention.created_by,
+            is_read=mention.is_read,
+            created_at=mention.created_at
+        )
+        
+        # Add document title if it's a document mention
+        if mention.document_id:
+            document = db.get(Document, mention.document_id)
+            if document:
+                response.document_title = document.title
+        
+        # Add task title if it's a task mention
+        if mention.task_id:
+            task_obj = db.get(Task, mention.task_id)
+            if task_obj:
+                response.task_title = task_obj.title
+        
+        mentions.append(response)
+    
+    return AgentRegistrationResponse(
+        agent=AgentResponse(
+            id=agent.id,
+            agent_id=agent.agent_id,
+            role=agent.role,
+            level=agent.level,
+            connection_type=agent.connection_type,
+            last_seen=agent.last_seen
+        ),
+        next_task=next_task,
+        mentions=mentions
+    )
 
 @router.get("/agents", response_model=List[AgentResponse],
     summary="List all agents", 
@@ -126,6 +278,47 @@ def create_feature(request: FeatureCreateRequest, agent_id: str, db: Session = D
     
     return feature
 
+@router.get("/tasks", response_model=List[TaskResponse],
+    summary="List all tasks",
+    description="Get all tasks with optional filtering by status and role")
+def list_tasks(
+    status: Optional[TaskStatus] = None,
+    role: Optional[AgentRole] = None,
+    db: Session = Depends(get_session)
+):
+    """List all tasks with optional filtering"""
+    query = select(Task).order_by(Task.created_at.desc())
+    
+    if status:
+        query = query.where(Task.status == status)
+    
+    if role:
+        query = query.where(Task.target_role == role)
+    
+    tasks = db.exec(query).all()
+    
+    # Convert to TaskResponse objects
+    return [
+        TaskResponse(
+            id=task.id,
+            feature_id=task.feature_id,
+            title=task.title,
+            description=task.description,
+            created_by=task.creator.agent_id if task.creator else "unknown",
+            target_role=task.target_role,
+            difficulty=task.difficulty,
+            complexity=task.complexity,
+            branch=task.branch,
+            status=task.status,
+            locked_by=task.locked_by_agent.agent_id if task.locked_by_agent else None,
+            locked_at=task.locked_at,
+            notes=task.notes,
+            created_at=task.created_at,
+            updated_at=task.updated_at
+        )
+        for task in tasks
+    ]
+
 @router.post("/tasks/create", response_model=TaskResponse,
     summary="Create a new task",
     description="Any agent can create a task for any role")
@@ -184,9 +377,9 @@ def create_task(request: TaskCreateRequest, agent_id: str, db: Session = Depends
         updated_at=task.updated_at
     )
 
-@router.get("/tasks/next", response_model=Optional[TaskResponse],
+@router.get("/tasks/next", response_model=TaskResponse,
     summary="Get next available task",
-    description="Get the next task based on agent's role and skill level. Both 'role' and 'level' query parameters are required.")
+    description="Get the next task based on agent's role and skill level, or a waiting task if none available. Both 'role' and 'level' query parameters are required.")
 def get_next_task(role: AgentRole = None, level: DifficultyLevel = None, 
                   db: Session = Depends(get_session)):
     # Validate required parameters
@@ -201,59 +394,22 @@ def get_next_task(role: AgentRole = None, level: DifficultyLevel = None,
             detail="Missing required parameter 'level'. Please provide a valid level (e.g., ?level=senior)"
         )
     
-    # Determine which statuses to look for based on role
-    if role in [AgentRole.ARCHITECT, AgentRole.PM]:
-        # Architects and PMs evaluate created tasks
-        query = select(Task).where(
-            Task.status == TaskStatus.CREATED,
-            Task.locked_by_id.is_(None)
-        )
-    elif role == AgentRole.QA:
-        # QA tests dev_done tasks
-        query = select(Task).where(
-            Task.status == TaskStatus.DEV_DONE,
-            Task.locked_by_id.is_(None)
-        )
-    else:
-        # Developers work on approved tasks
-        # Get tasks at or below their skill level
-        difficulty_order = {
-            DifficultyLevel.JUNIOR: [DifficultyLevel.JUNIOR],
-            DifficultyLevel.SENIOR: [DifficultyLevel.JUNIOR, DifficultyLevel.SENIOR],
-            DifficultyLevel.PRINCIPAL: [DifficultyLevel.JUNIOR, DifficultyLevel.SENIOR, DifficultyLevel.PRINCIPAL]
-        }
-        allowed_difficulties = difficulty_order.get(level, [level])
-        
-        query = select(Task).where(
-            Task.status == TaskStatus.APPROVED,
-            Task.target_role == role,
-            Task.difficulty.in_(allowed_difficulties),
-            Task.locked_by_id.is_(None)
-        )
-    
-    # Get oldest unlocked task
-    task = db.exec(query.order_by(Task.created_at)).first()
-    
-    if not task:
-        return None
-    
-    return TaskResponse(
-        id=task.id,
-        feature_id=task.feature_id,
-        title=task.title,
-        description=task.description,
-        created_by=task.creator.agent_id,
-        target_role=task.target_role,
-        difficulty=task.difficulty,
-        complexity=task.complexity,
-        branch=task.branch,
-        status=task.status,
-        locked_by=None,
-        locked_at=None,
-        notes=task.notes,
-        created_at=task.created_at,
-        updated_at=task.updated_at
+    # Create a temporary agent object for the helper functions
+    temp_agent = Agent(
+        agent_id=f"temp_{role.value}_{level.value}",
+        role=role,
+        level=level,
+        last_seen=datetime.utcnow()
     )
+    
+    # Try to get a real task
+    next_task = get_next_task_for_agent(temp_agent, db)
+    
+    if next_task:
+        return next_task
+    else:
+        # Return a waiting task to keep agents active
+        return create_waiting_task(temp_agent, poll_interval=300)
 
 @router.post("/tasks/{task_id}/lock", response_model=TaskResponse,
     summary="Lock a task",
@@ -298,9 +454,9 @@ def lock_task(task_id: int, agent_id: str, db: Session = Depends(get_session)):
         updated_at=task.updated_at
     )
 
-@router.put("/tasks/{task_id}/status", response_model=TaskResponse,
+@router.put("/tasks/{task_id}/status", response_model=TaskStatusUpdateResponse,
     summary="Update task status",
-    description="Update task status and automatically release lock when moving from UNDER_WORK")
+    description="Update task status, automatically release lock when moving from UNDER_WORK, and return next available task")
 def update_task_status(task_id: int, request: TaskStatusUpdateRequest, 
                       agent_id: str, db: Session = Depends(get_session)):
     # Get task
@@ -344,7 +500,8 @@ def update_task_status(task_id: int, request: TaskStatusUpdateRequest,
     db.commit()
     db.refresh(task)
     
-    return TaskResponse(
+    # Create the current task response
+    task_response = TaskResponse(
         id=task.id,
         feature_id=task.feature_id,
         title=task.title,
@@ -359,7 +516,25 @@ def update_task_status(task_id: int, request: TaskStatusUpdateRequest,
         locked_at=task.locked_at,
         notes=task.notes,
         created_at=task.created_at,
-        updated_at=task.updated_at
+        updated_at=task.updated_at,
+        task_type=TaskType.REGULAR
+    )
+    
+    # Get next available task for this agent
+    next_task = get_next_task_for_agent(agent, db)
+    
+    # Determine workflow status
+    if next_task:
+        workflow_status = "continue"
+    else:
+        # Create a waiting task
+        next_task = create_waiting_task(agent, poll_interval=300)
+        workflow_status = "waiting"
+    
+    return TaskStatusUpdateResponse(
+        task=task_response,
+        next_task=next_task,
+        workflow_status=workflow_status
     )
 
 

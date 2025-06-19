@@ -2,13 +2,14 @@ from enum import Enum
 
 class TaskStatus(str, Enum):
     CREATED = "created"
-    EVALUATION = "evaluation"
-    APPROVED = "approved"
     UNDER_WORK = "under_work"
     DEV_DONE = "dev_done"
     QA_DONE = "qa_done"
     DOCUMENTATION_DONE = "documentation_done"
     COMMITTED = "committed"
+    # Legacy statuses (deprecated but kept for backward compatibility)
+    EVALUATION = "evaluation"
+    APPROVED = "approved"
 
 class AgentRole(str, Enum):
     FRONTEND_DEV = "frontend_dev"
@@ -29,3 +30,7 @@ class TaskComplexity(str, Enum):
 class ConnectionType(str, Enum):
     MCP = "mcp"      # Model Context Protocol
     CLIENT = "client"  # Direct API client
+
+class TaskType(str, Enum):
+    REGULAR = "regular"   # Normal development task
+    WAITING = "waiting"   # Synthetic waiting task for polling

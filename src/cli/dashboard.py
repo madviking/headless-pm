@@ -43,7 +43,7 @@ class HeadlessPMDashboard:
         )
         
         self.layout["left"].split_column(
-            Layout(name="tasks", ratio=1),
+            Layout(name="tasks", ratio=2),
             Layout(name="agents", ratio=1),
             Layout(name="epics", ratio=1)
         )
@@ -79,16 +79,20 @@ class HeadlessPMDashboard:
             count = len(db.exec(select(Task).where(Task.status == status)).all())
             task_counts[status.value] = count
         
-        # Get recent tasks
-        recent_tasks = db.exec(
-            select(Task).order_by(Task.updated_at.desc()).limit(8)
-        ).all()
+        # Get recent tasks by status for better visualization
+        recent_tasks_by_status = {}
+        for status in TaskStatus:
+            task = db.exec(
+                select(Task).where(Task.status == status).order_by(Task.updated_at.desc())
+            ).first()
+            if task:
+                recent_tasks_by_status[status.value] = task
         
         table = Table(title="Tasks", box=box.MINIMAL)
-        table.add_column("Status", style="cyan")
-        table.add_column("Count", justify="right")
-        table.add_column("Recent Task", style="green")
-        table.add_column("Assignee", style="yellow")
+        table.add_column("Status", style="cyan", width=16, no_wrap=True)
+        table.add_column("Count", justify="right", width=5, no_wrap=True)
+        table.add_column("Recent Task", style="green", width=22, no_wrap=True)
+        table.add_column("Assignee", style="yellow", width=12, no_wrap=True)
         
         status_colors = {
             "created": "red",
@@ -101,15 +105,23 @@ class HeadlessPMDashboard:
             "committed": "bright_blue"
         }
         
-        for i, (status, count) in enumerate(task_counts.items()):
-            status_display = status.replace('_', ' ').title()
+        # Custom status display names
+        status_display_names = {
+            "approved": "Ready for Pickup",
+            "documentation_done": "Docs Done",
+            "under_work": "In Progress"
+        }
+        
+        for status, count in task_counts.items():
+            status_display = status_display_names.get(status, status.replace('_', ' ').title())
             color = status_colors.get(status, "white")
             
-            if i < len(recent_tasks):
-                task = recent_tasks[i]
-                task_title = task.title[:25] + "..." if len(task.title) > 25 else task.title
-                assignee = task.target_role.value if task.target_role else "-"
-                locked_by = f"🔒 {task.locked_by_agent.agent_id}" if task.locked_by_agent else assignee
+            # Get the most recent task for this status
+            if status in recent_tasks_by_status:
+                task = recent_tasks_by_status[status]
+                task_title = task.title[:19] + "..." if len(task.title) > 19 else task.title
+                assignee = task.target_role.value.replace('_', ' ').title() if task.target_role else "-"
+                locked_by = f"🔒{task.locked_by_agent.agent_id[:7]}" if task.locked_by_agent else assignee[:10]
             else:
                 task_title = "-"
                 locked_by = "-"

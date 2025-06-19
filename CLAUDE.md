@@ -4,24 +4,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Environment Setup
 
-### Claude Code Virtual Environment (REQUIRED!)
-For Claude Code development, use the specialized virtual environment:
-
-```bash
-# Create Claude-specific virtual environment
-./setup/create_claude_venv.sh
-
-# Activate Claude virtual environment
-source claude_venv/bin/activate
-
-# Verify installation
-python --version  # Should show Python 3.11.0
-which python      # Should point to claude_venv/bin/python
-```
-
-### Standard Development Environment (outside Claude Code)
-For general development:
-
 ```bash
 # Setup virtual environment and install dependencies
 python -m venv venv
@@ -51,10 +33,7 @@ source venv/bin/activate  # or source claude_venv/bin/activate
 #### Manual Start
 ```bash
 # Run API server
-uvicorn src.main:app --reload --port 6969
-
-# Or use the CLI to start server
-python -m src.cli.main serve --port 6969
+bash start.sh
 ```
 
 The `start.sh` script automatically:
@@ -67,106 +46,6 @@ The `start.sh` script automatically:
 - ✅ Starts server with proper configuration
 
 **Note**: Activate your virtual environment before running the start script.
-
-## MCP Server Integration for Claude Code
-
-### Quick Installation
-```bash
-# Automatic installation for Claude Code
-./agents/claude/install_client.sh
-```
-
-This script will:
-1. Create necessary bridge scripts
-2. Set up environment variables
-3. Configure MCP server in Claude Code settings
-4. Register your agent with connection type "mcp"
-
-### Manual MCP Configuration
-If you prefer manual setup, add this to your Claude Code settings:
-```json
-{
-  "mcpServers": {
-    "headless-pm": {
-      "command": "python",
-      "args": ["/path/to/headless-pm/headless-pm-mcp-bridge.py"],
-      "env": {
-        "HEADLESS_PM_API_URL": "http://localhost:6969",
-        "HEADLESS_PM_API_KEY": "your_api_key",
-        "AGENT_ID": "your_agent_id",
-        "AGENT_ROLE": "backend_dev",
-        "AGENT_SKILL_LEVEL": "senior"
-      }
-    }
-  }
-}
-```
-
-### Using MCP in Claude Code
-Once configured, you can use natural language commands:
-- "Show me available epics"
-- "Get my next task"
-- "Create a feature for user authentication"
-- "Update task 123 to dev_done"
-- "Send a document mentioning @architect about the API design"
-
-### MCP Features
-- Automatic agent registration
-- Natural language task management
-- Token usage tracking
-- Seamless Claude Code integration
-
-## CLI Commands
-
-### Project Management
-```bash
-# Show project status
-python -m src.cli.main status
-
-# Show task assignments
-python -m src.cli.main tasks
-
-# Show registered agents
-python -m src.cli.main agents
-
-# Show services
-python -m src.cli.main services
-
-# Show documents
-python -m src.cli.main documents
-
-# Real-time dashboard
-python -m src.cli.main dashboard
-```
-
-### Database Management
-```bash
-# Initialize database (create tables)
-python -m src.cli.main init
-
-# Reset database (deletes all data)
-python -m src.cli.main reset
-
-# Seed with sample data
-python -m src.cli.main seed
-```
-
-### Database Migrations
-**IMPORTANT**: The latest version has schema changes. If you have an existing installation:
-
-```bash
-# Option 1: Drop and recreate tables (RECOMMENDED for now)
-python -m src.cli.main reset
-python -m src.cli.main init
-python -m src.cli.main seed  # Optional
-
-# Option 2: Run migration scripts manually
-python migrations/migrate_connection_type.py    # Adds connection_type to agents
-python migrations/migrate_service_ping.py       # Adds ping URL fields to services
-python migrations/migrate_to_text_columns.py    # Converts columns to TEXT type
-```
-
-**Note**: Future versions will support seamless migrations. For now, dropping and recreating tables is the safest approach.
 
 ## Testing
 
@@ -263,7 +142,6 @@ headless-pm/
 - `GET /api/v1/tasks/next` - Get next available task for role
 - `POST /api/v1/tasks/{id}/lock` - Lock task to prevent duplicate work
 - `PUT /api/v1/tasks/{id}/status` - Update task status
-- `POST /api/v1/tasks/{id}/evaluate` - Approve/reject task (architect/pm only)
 - `POST /api/v1/tasks/{id}/comment` - Add comment with @mention support
 
 ### Document Communication
@@ -365,3 +243,6 @@ Agents can register with two connection types:
 - Token usage tracking included
 
 The connection type helps distinguish between different agent interfaces and enables appropriate features for each type.
+
+### Memories
+- 8000 port is for another service entirely, leave that alone!

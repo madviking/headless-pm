@@ -313,7 +313,7 @@ def validate_args(args, parser):
         if not hasattr(args, 'status') or not args.status:
             print("Error: tasks status requires --status argument")
             print("Example: python3 headless_pm_client.py tasks status 123 --status dev_done --agent-id 'backend_dev_001'")
-            print("\nAvailable statuses: created, evaluation, approved, under_work, dev_done, qa_done, documentation_done, committed")
+            print("\nAvailable statuses: created, under_work, dev_done, qa_done, documentation_done, committed")
             sys.exit(1)
 
 def main():
@@ -331,7 +331,15 @@ All agents should follow these common instructions.
 
 ### Register yourself (CRITICAL)
 - Register yourself based on your agent role: `python3 headless_pm_client.py register --agent-id "YOUR_AGENT_ID" --role YOUR_ROLE --level YOUR_LEVEL`
+- Registration automatically returns your next available task and any unread mentions
 - Register any services you manage (refer to service_responsibilities.md)
+
+### Maintain Continuous Availability (CRITICAL)
+- **Never exit** when no tasks are available - enter polling mode instead
+- Check for new tasks every 5 minutes during idle periods
+- Monitor @mentions and respond within 15 minutes
+- Post hourly status updates when idle for extended periods
+- Stay responsive to critical issues even during idle time
 
 ### Progress Reporting (CRITICAL)
 **YOU MUST PROACTIVELY REPORT YOUR PROGRESS**:
@@ -368,16 +376,42 @@ All agents should follow these common instructions.
 - Notify relevant team members: Use @mentions in document content, e.g., "@qa_001 ready for testing"
 - Commit code if applicable
 
-### 4. Poll for Next Task
-- If no next task is available, use command sleep 300
-- Check for tasks again: `python3 headless_pm_client.py tasks next --role YOUR_ROLE --level YOUR_LEVEL`
-- Check for mentions: `python3 headless_pm_client.py mentions --agent-id "YOUR_AGENT_ID"`
-- Respond to critical issues quickly
+### 4. Continuous Operation Loop
+When no next task is available, enter continuous operation mode:
+
+**Basic Polling Loop:**
+```bash
+while true; do
+    # Check for new tasks
+    TASK=$(python3 headless_pm_client.py tasks next --role YOUR_ROLE --level YOUR_LEVEL)
+    if [[ "$TASK" != *'"message": "No tasks available"'* ]]; then
+        echo "New task found, breaking out of polling loop"
+        break
+    fi
+    
+    # Check for mentions and respond if urgent
+    python3 headless_pm_client.py mentions --agent-id "YOUR_AGENT_ID"
+    
+    # Check for changes since last poll
+    TIMESTAMP=$(date +%s)
+    python3 headless_pm_client.py changes --since $((TIMESTAMP - 300)) --agent-id "YOUR_AGENT_ID"
+    
+    # Wait 5 minutes before next poll
+    sleep 300
+done
+```
+
+**Advanced Polling with Responsiveness:**
+- Monitor mentions every poll cycle for urgent @mentions
+- Check service health if you manage services
+- Post hourly "still available" status updates if idle >1 hour
+- Respond to critical issues immediately, even during polling
+- Break out of polling immediately when tasks become available
 
 ## Status Progression
 
 ### Development Flow
-- `created` → `approved` → `under_work` → `dev_done` → `testing` → `qa_done` → `documentation_done` → `committed` → `completed`
+- `created` → `under_work` → `dev_done` → `qa_done` → `documentation_done` → `committed`
 
 ### Key Status Rules
 - Only ONE task in `under_work` at a time
@@ -425,8 +459,9 @@ Always handle errors gracefully:
 - Create critical_issue documents for blockers
 - Provide workarounds when possible
 
-## Best Practices
+## Continuous Operation Best Practices
 
+### During Active Work
 1. **Over-communicate** - More updates are better than fewer
 2. **Be specific** - Include IDs, error messages, screenshots
 3. **Stay focused** - One task at a time
@@ -434,6 +469,22 @@ Always handle errors gracefully:
 5. **Document well** - Help future team members
 6. **Collaborate** - Use @mentions, ask questions
 7. **Track time** - Note how long tasks take
+
+### During Idle/Polling Periods
+8. **Stay available** - Poll every 5 minutes for new tasks
+9. **Monitor mentions** - Check for @mentions during each poll cycle
+10. **Maintain presence** - Post availability updates every hour when idle
+11. **Service monitoring** - Check health of services you manage
+12. **Proactive help** - Offer assistance on critical issues even when no tasks assigned
+13. **Documentation review** - Use idle time to improve project documentation
+14. **Code review** - Help review PRs when available
+
+### Idle Time Activities (in priority order)
+- **First Priority**: Monitor for urgent @mentions and critical issues
+- **Second Priority**: Check for new tasks every 5 minutes
+- **Third Priority**: Review and improve existing documentation
+- **Fourth Priority**: Code review for team members
+- **Fifth Priority**: Proactive system health checks
 
 ## Skill Levels
 
@@ -448,9 +499,56 @@ Key paths and settings:
 - API always runs on `http://localhost:6969`
 - Check `.env` for API keys and configuration
 
+## Agent Lifecycle & Continuous Operation
+
+### Expected Agent Behavior
+- **Always On**: Agents should remain active and responsive during work hours
+- **Proactive Polling**: Check for new tasks every 5 minutes when idle
+- **Responsive Communication**: Respond to @mentions within 15 minutes
+- **Status Updates**: Post availability/status updates every hour during idle periods
+- **Graceful Handling**: Handle "No tasks available" by entering polling mode, not exiting
+
+### Sample Agent Session Flow
+```bash
+# 1. Start session - register and get initial work
+python3 headless_pm_client.py register --agent-id "backend_dev_001" --role backend_dev --level senior
+
+# 2. Work on assigned tasks (if any)
+# ... task work cycle ...
+
+# 3. When no tasks available, enter continuous operation
+while true; do
+    # Check for new tasks
+    NEXT_TASK=$(python3 headless_pm_client.py tasks next --role backend_dev --level senior)
+    
+    if [[ "$NEXT_TASK" != *'"message": "No tasks available"'* ]]; then
+        echo "New task available, processing..."
+        # Process the task
+        break
+    fi
+    
+    # Check mentions and changes
+    python3 headless_pm_client.py mentions --agent-id "backend_dev_001"
+    
+    # Post hourly availability update (check if an hour has passed)
+    CURRENT_HOUR=$(date +%H)
+    if [[ "$CURRENT_HOUR" != "$LAST_UPDATE_HOUR" ]]; then
+        python3 headless_pm_client.py documents create \
+            --type update \
+            --title "Agent Status" \
+            --content "backend_dev_001 available and monitoring for new tasks" \
+            --author-id "backend_dev_001"
+        LAST_UPDATE_HOUR=$CURRENT_HOUR
+    fi
+    
+    # Wait 5 minutes before next check
+    sleep 300
+done
+```
+
 ## Remember
 
-The goal is efficient, asynchronous collaboration. Your updates and documents are how the team stays synchronized. When in doubt, communicate more rather than less.
+The goal is efficient, asynchronous collaboration with **continuous availability**. Your updates and documents are how the team stays synchronized. Agents should never exit due to "no work available" - instead, enter monitoring mode and stay responsive. When in doubt, communicate more rather than less.
 
 ================================================================================
 QUICK START - COMMON COMMANDS WITH EXAMPLES
@@ -458,6 +556,7 @@ QUICK START - COMMON COMMANDS WITH EXAMPLES
 
 🚀 GETTING STARTED:
   python3 headless_pm_client.py register --agent-id "backend_dev_001" --role backend_dev --level senior
+  # Registration returns your agent info, next available task, and unread mentions
   python3 headless_pm_client.py context
 
 📋 WORKING WITH TASKS:
@@ -493,7 +592,7 @@ COMPLETE COMMAND REFERENCE
 ================================================================================
 
 AGENT MANAGEMENT:
-  register              - Register an agent with role and skill level
+  register              - Register an agent with role and skill level (returns agent info, next task, and mentions)
   agents list           - List all registered agents  
   agents delete         - Delete an agent (PM only)
   context               - Get project context and configuration
@@ -561,7 +660,8 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Register agent
-    register_parser = subparsers.add_parser("register", help="Register an agent")
+    register_parser = subparsers.add_parser("register", 
+                                           help="Register an agent (returns agent info, next task, and mentions)")
     register_parser.add_argument("--agent-id", required=True, help="Unique agent identifier")
     register_parser.add_argument("--role", required=True, 
                                choices=["frontend_dev", "backend_dev", "qa", "architect", "pm"])
@@ -653,7 +753,7 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
                                      epilog="Example: python3 headless_pm_client.py tasks status 123 --status dev_done --agent-id 'backend_dev_001' --notes 'Implementation complete'")
     task_status.add_argument("task_id", type=int, help="Task ID")
     task_status.add_argument("--status", required=True, 
-                           choices=["created", "evaluation", "approved", "under_work", "dev_done", 
+                           choices=["created", "under_work", "dev_done", 
                                    "qa_done", "documentation_done", "committed"],
                            help="New task status (REQUIRED)")
     task_status.add_argument("--agent-id", required=True, help="Your agent ID (REQUIRED)")
