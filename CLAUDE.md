@@ -44,6 +44,14 @@ The `start.sh` script automatically:
 - ✅ Initializes database if needed
 - ✅ Checks port availability
 - ✅ Starts server with proper configuration
+- ✅ Starts only services with defined ports in .env
+
+**Service Port Configuration:**
+- Services are only started if their port is defined in `.env`
+- To skip a service, remove or comment out its port variable:
+  - `SERVICE_PORT` - API server (default: 6969)
+  - `MCP_PORT` - MCP server (default: 6968) 
+  - `DASHBOARD_PORT` - Web dashboard (default: 3001)
 
 **Note**: Activate your virtual environment before running the start script.
 
@@ -102,6 +110,8 @@ Headless PM is a REST API for LLM agent task coordination with document-based co
 - **Python Client Helper**: Complete CLI interface (`headless_pm_client.py`)
 - **MCP Server**: Natural language interface for Claude Code
 - **Database Migrations**: Schema evolution support
+- **Web Dashboard**: Real-time project overview with analytics and monitoring
+- **Port-based Service Control**: Services only start if their port is defined in .env
 
 ## Project Structure
 
@@ -114,6 +124,9 @@ headless-pm/
 │   ├── cli/               # CLI commands
 │   ├── mcp/               # MCP server implementation
 │   └── main.py            # FastAPI app entry point
+├── dashboard/             # Next.js web dashboard
+│   ├── src/               # Dashboard source code
+│   └── package.json       # Dashboard dependencies
 ├── tests/                 # Test files
 ├── migrations/            # Database migration scripts
 ├── agent_instructions/    # Per-role markdown instructions
@@ -121,6 +134,7 @@ headless-pm/
 │   └── claude/            # Claude Code specific tools
 ├── setup/                 # Installation and setup scripts
 ├── docs/                  # Project documentation
+│   └── images/            # Dashboard screenshots
 └── headless_pm_client.py  # Python CLI client
 ```
 
@@ -173,6 +187,7 @@ headless-pm/
 - ✅ **Fully Implemented**: Complete REST API with all endpoints
 - ✅ **Database Models**: SQLModel with proper relationships
 - ✅ **CLI Interface**: Full command-line management tools
+- ✅ **Web Dashboard**: Next.js dashboard with real-time updates
 - ✅ **Testing**: 78 tests with 71% coverage
 - ✅ **Documentation**: Agent instructions and workflow guides
 

@@ -27,3 +27,4 @@ SERVICER_HOST=localhost
 
 # this is used by the client process
 API_KEY_HEADLESS_PM="XXXXXX"
+DASHBOARD_PORT=3001

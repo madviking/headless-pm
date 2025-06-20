@@ -171,31 +171,38 @@ fi
 
 # Check port availability
 PORT=${SERVICE_PORT:-6969}
-MCP_PORT=${MCP_PORT:-6968}
-DASHBOARD_PORT=${DASHBOARD_PORT:-3001}
 
-log_info "Checking if port $PORT is available..."
-if lsof -i :$PORT >/dev/null 2>&1; then
-    log_warning "Port $PORT is already in use"
-    log_info "You may want to stop the existing service or use a different port"
-else
-    log_success "Port $PORT is available"
+# Only check port if service will be started
+if [ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]; then
+    log_info "Checking if port $PORT is available..."
+    if lsof -i :$PORT >/dev/null 2>&1; then
+        log_warning "Port $PORT is already in use"
+        log_info "You may want to stop the existing service or use a different port"
+    else
+        log_success "Port $PORT is available"
+    fi
 fi
 
-log_info "Checking if MCP port $MCP_PORT is available..."
-if lsof -i :$MCP_PORT >/dev/null 2>&1; then
-    log_warning "MCP port $MCP_PORT is already in use"
-    log_info "You may want to stop the existing service or use a different port"
-else
-    log_success "MCP port $MCP_PORT is available"
+# Only check MCP port if defined
+if [ ! -z "$MCP_PORT" ]; then
+    log_info "Checking if MCP port $MCP_PORT is available..."
+    if lsof -i :$MCP_PORT >/dev/null 2>&1; then
+        log_warning "MCP port $MCP_PORT is already in use"
+        log_info "You may want to stop the existing service or use a different port"
+    else
+        log_success "MCP port $MCP_PORT is available"
+    fi
 fi
 
-log_info "Checking if dashboard port $DASHBOARD_PORT is available..."
-if lsof -i :$DASHBOARD_PORT >/dev/null 2>&1; then
-    log_warning "Dashboard port $DASHBOARD_PORT is already in use"
-    log_info "You may want to stop the existing service or use a different port"
-else
-    log_success "Dashboard port $DASHBOARD_PORT is available"
+# Only check dashboard port if defined
+if [ ! -z "$DASHBOARD_PORT" ]; then
+    log_info "Checking if dashboard port $DASHBOARD_PORT is available..."
+    if lsof -i :$DASHBOARD_PORT >/dev/null 2>&1; then
+        log_warning "Dashboard port $DASHBOARD_PORT is already in use"
+        log_info "You may want to stop the existing service or use a different port"
+    else
+        log_success "Dashboard port $DASHBOARD_PORT is available"
+    fi
 fi
 
 # Function to start MCP server in background
@@ -234,8 +241,8 @@ start_dashboard() {
             log_success "Dashboard dependencies installed"
         fi
         
-        # Start the dashboard
-        npm run dev 2>&1 | sed 's/^/[DASHBOARD] /' &
+        # Start the dashboard with the configured port
+        npx next dev --port $DASHBOARD_PORT --turbopack 2>&1 | sed 's/^/[DASHBOARD] /' &
         DASHBOARD_PID=$!
         cd ..
         log_success "Dashboard started on port $DASHBOARD_PORT (PID: $DASHBOARD_PID)"
@@ -270,23 +277,41 @@ trap cleanup INT TERM
 log_info "All checks passed! Starting Headless PM servers..."
 echo -e "${GREEN}"
 echo "🌟 Starting services..."
-echo "📚 API Documentation: http://localhost:$PORT/api/v1/docs"
-echo "🔌 MCP HTTP Server: http://localhost:$MCP_PORT"
-echo "🖥️  Web Dashboard: http://localhost:$DASHBOARD_PORT"
+if [ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]; then
+    echo "📚 API Documentation: http://localhost:$PORT/api/v1/docs"
+fi
+if [ ! -z "$MCP_PORT" ]; then
+    echo "🔌 MCP HTTP Server: http://localhost:$MCP_PORT"
+fi
+if [ ! -z "$DASHBOARD_PORT" ]; then
+    echo "🖥️  Web Dashboard: http://localhost:$DASHBOARD_PORT"
+fi
 echo "📊 CLI Dashboard: python -m src.cli.main dashboard"
 echo "🛑 Stop servers: Ctrl+C"
 echo -e "${NC}"
 
-# Start MCP server in background
-start_mcp_server
+# Start MCP server in background (only if MCP_PORT is defined)
+if [ ! -z "$MCP_PORT" ]; then
+    start_mcp_server
+else
+    log_info "MCP_PORT not defined in .env, skipping MCP server startup"
+fi
 
-# Start dashboard in background
-start_dashboard
+# Start dashboard in background (only if DASHBOARD_PORT is defined)
+if [ ! -z "$DASHBOARD_PORT" ]; then
+    start_dashboard
+else
+    log_info "DASHBOARD_PORT not defined in .env, skipping dashboard startup"
+fi
 
-# Start API server
-log_info "Starting API server on port $PORT..."
-uvicorn src.main:app --reload --port $PORT --host 0.0.0.0 &
-API_PID=$!
+# Start API server (only if SERVICE_PORT is defined or use default)
+if [ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]; then
+    log_info "Starting API server on port $PORT..."
+    uvicorn src.main:app --reload --port $PORT --host 0.0.0.0 &
+    API_PID=$!
+else
+    log_info "SERVICE_PORT not defined in .env, skipping API server startup"
+fi
 
 # Wait for all processes
 wait $API_PID $MCP_PID $DASHBOARD_PID

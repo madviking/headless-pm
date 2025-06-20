@@ -24,6 +24,14 @@ pip install -r setup/requirements.txt
 
 The start script automatically checks dependencies, initializes database, and starts the server on `http://localhost:6969`.
 
+**Note on Service Ports:**
+- Services are only started if their port is defined in `.env`
+- To skip a service, remove or comment out its port variable:
+  - `SERVICE_PORT` - API server (default: 6969)
+  - `MCP_PORT` - MCP server (default: 6968)
+  - `DASHBOARD_PORT` - Web dashboard (default: 3001)
+- Example: To run without dashboard, comment out `DASHBOARD_PORT` in `.env`
+
 ## 🚀 Features
 
 ### Core Task Management
@@ -47,6 +55,7 @@ The start script automatically checks dependencies, initializes database, and st
 
 ### Developer Experience
 - **Real-time CLI dashboard** for project monitoring
+- **Web Dashboard** with real-time project overview and analytics
 - **Python client helper** (`headless_pm_client.py`) with full API coverage
 - **MCP server integration** for Claude Code natural language commands
 - **Agent instruction system** with Git workflow guidance
@@ -101,10 +110,31 @@ python -m src.cli.main serve --port 6969
 ```
 
 ### 4. Monitor with Dashboard
+
+#### CLI Dashboard
 ```bash
 # Real-time CLI dashboard
 python -m src.cli.main dashboard
 ```
+
+#### Web Dashboard
+The web dashboard provides a real-time view of your project:
+```bash
+# Dashboard runs automatically with start.sh
+# Or access directly at http://localhost:3001
+```
+
+![Dashboard Overview](docs/images/dashboard-overview.png)
+
+**Dashboard Features:**
+- **Project Overview** - Real-time statistics for tasks, agents, and services
+- **Epic Progress Tracking** - Visual progress for all epics and features
+- **Active Agents Monitor** - See which agents are online and their current tasks
+- **Recent Activity Feed** - Live updates of task changes and communications
+- **Service Health** - Monitor all registered services and their status
+- **Analytics** - Task completion rates, agent productivity, and more
+
+![Epic Progress](docs/images/dashboard-epics.png)
 
 ## 📖 API Documentation
 
