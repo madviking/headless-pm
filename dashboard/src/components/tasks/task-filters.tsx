@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,11 @@ export interface TaskFilters {
 export function TaskFilters({ onFiltersChange }: TaskFiltersProps) {
   const [filters, setFilters] = useState<TaskFilters>({});
 
+  // Use useEffect to call onFiltersChange after state updates
+  useEffect(() => {
+    onFiltersChange?.(filters);
+  }, [filters, onFiltersChange]);
+
   const updateFilters = useCallback((key: keyof TaskFilters, value: string | undefined) => {
     setFilters(prev => {
       const newFilters = { ...prev };
@@ -35,15 +40,13 @@ export function TaskFilters({ onFiltersChange }: TaskFiltersProps) {
       } else {
         delete newFilters[key];
       }
-      onFiltersChange?.(newFilters);
       return newFilters;
     });
-  }, [onFiltersChange]);
+  }, []);
 
   const clearFilters = useCallback(() => {
     setFilters({});
-    onFiltersChange?.({});
-  }, [onFiltersChange]);
+  }, []);
 
   const hasActiveFilters = Object.keys(filters).length > 0;
 

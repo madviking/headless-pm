@@ -573,12 +573,14 @@ def list_epics(db: Session = Depends(get_session)):
     for epic in epics:
         # Count tasks for this epic
         task_count = 0
-        completed_count = 0
+        completed_task_count = 0
+        in_progress_task_count = 0
         
         for feature in epic.features:
             tasks = db.exec(select(Task).where(Task.feature_id == feature.id)).all()
             task_count += len(tasks)
-            completed_count += len([t for t in tasks if t.status == TaskStatus.COMMITTED])
+            completed_task_count += len([t for t in tasks if t.status == TaskStatus.COMMITTED])
+            in_progress_task_count += len([t for t in tasks if t.status in [TaskStatus.UNDER_WORK, TaskStatus.DEV_DONE, TaskStatus.QA_DONE, TaskStatus.DOCUMENTATION_DONE]])
         
         epic_response = EpicResponse(
             id=epic.id,
@@ -586,7 +588,8 @@ def list_epics(db: Session = Depends(get_session)):
             description=epic.description,
             created_at=epic.created_at,
             task_count=task_count,
-            completed_count=completed_count
+            completed_task_count=completed_task_count,
+            in_progress_task_count=in_progress_task_count
         )
         epic_responses.append(epic_response)
     

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Task, AgentRole } from '@/lib/types';
-import { format, addDays, startOfWeek } from 'date-fns';
+import { format, addHours, startOfDay } from 'date-fns';
 
 const ROLE_COLORS = {
   [AgentRole.FrontendDev]: 'bg-blue-500',
@@ -15,7 +15,7 @@ const ROLE_COLORS = {
   [AgentRole.PM]: 'bg-red-500'
 };
 
-function TimelineRow({ task, dates }: { task: Task; dates: Date[] }) {
+function TimelineRow({ task, hours }: { task: Task; hours: Date[] }) {
   const getTaskIcon = (title: string) => {
     const lower = title.toLowerCase();
     if (lower.includes('navigation') || lower.includes('ui')) return '🎨';
@@ -34,9 +34,11 @@ function TimelineRow({ task, dates }: { task: Task; dates: Date[] }) {
     return '📋';
   };
 
-  // Generate some mock timeline data for demonstration
-  const startDate = new Date();
-  const endDate = addDays(startDate, Math.floor(Math.random() * 7) + 1);
+  // Generate some mock timeline data for demonstration (in hours)
+  const now = new Date();
+  const startHour = addHours(now, Math.floor(Math.random() * 4)); // Start within next 4 hours
+  const duration = Math.floor(Math.random() * 8) + 1; // 1-8 hours duration
+  const endHour = addHours(startHour, duration);
   const isActive = Math.random() > 0.5;
   const isCompleted = Math.random() > 0.3;
 
@@ -48,17 +50,17 @@ function TimelineRow({ task, dates }: { task: Task; dates: Date[] }) {
       </div>
       
       <div className="col-span-2 flex items-center gap-2">
-        {task.assigned_role && (
+        {task.target_role && (
           <Badge variant="outline" className="text-xs">
-            {task.assigned_role.replace('_', ' ')}
+            {task.target_role.replace('_', ' ')}
           </Badge>
         )}
       </div>
 
-      <div className="col-span-6 grid grid-cols-7 gap-1">
-        {dates.map((date, index) => {
-          const isInRange = date >= startDate && date <= endDate;
-          const dayClass = isInRange
+      <div className="col-span-6 grid grid-cols-12 gap-1">
+        {hours.map((hour, index) => {
+          const isInRange = hour >= startHour && hour <= endHour;
+          const hourClass = isInRange
             ? isCompleted
               ? 'bg-green-500'
               : isActive
@@ -69,7 +71,8 @@ function TimelineRow({ task, dates }: { task: Task; dates: Date[] }) {
           return (
             <div
               key={index}
-              className={`h-6 rounded-sm ${dayClass} flex items-center justify-center`}
+              className={`h-6 rounded-sm ${hourClass} flex items-center justify-center`}
+              title={format(hour, 'HH:mm')}
             >
               {isInRange && (
                 <div className="w-full h-2 bg-current opacity-80 rounded-sm" />
@@ -88,9 +91,9 @@ export function TaskTimeline({ filters = {} }: { filters?: any }) {
     (client) => client.getTasks()
   );
 
-  // Generate 7 days starting from today
-  const startDate = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+  // Generate 12 hours starting from current hour
+  const currentHour = startOfDay(new Date());
+  const hours = Array.from({ length: 12 }, (_, i) => addHours(currentHour, i));
 
   if (isLoading) {
     return (
@@ -133,10 +136,10 @@ export function TaskTimeline({ filters = {} }: { filters?: any }) {
           <div className="grid grid-cols-12 gap-2 pb-2 border-b font-medium text-sm">
             <div className="col-span-4">Task Name</div>
             <div className="col-span-2">Assignee</div>
-            <div className="col-span-6 grid grid-cols-7 gap-1 text-center">
-              {dates.map((date, index) => (
+            <div className="col-span-6 grid grid-cols-12 gap-1 text-center">
+              {hours.map((hour, index) => (
                 <div key={index} className="text-xs">
-                  {format(date, 'MMM dd')}
+                  {format(hour, 'HH:mm')}
                 </div>
               ))}
             </div>
@@ -145,7 +148,7 @@ export function TaskTimeline({ filters = {} }: { filters?: any }) {
           {/* Task rows */}
           <div className="max-h-[400px] overflow-y-auto">
             {tasks.slice(0, 10).map((task) => (
-              <TimelineRow key={task.id} task={task} dates={dates} />
+              <TimelineRow key={task.id} task={task} hours={hours} />
             ))}
           </div>
 

@@ -59,11 +59,11 @@ export function TaskStats({ filters = {} }: { filters?: any }) {
   // Process data for analytics
   const tasksByAgent = agents.reduce((acc, agent) => {
     const agentTasks = tasks.filter(task => 
-      task.assigned_agent_id === agent.id || 
-      task.assigned_role === agent.role
+      task.locked_by === agent.agent_id || 
+      task.target_role === agent.role
     );
     acc[agent.id] = {
-      name: agent.name || agent.id,
+      name: agent.name || agent.agent_id,
       role: agent.role,
       total: agentTasks.length,
       completed: agentTasks.filter(task => task.status === TaskStatus.Committed).length,

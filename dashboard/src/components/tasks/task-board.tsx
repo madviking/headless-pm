@@ -34,6 +34,7 @@ const TASK_STATUSES = [
   { key: TaskStatus.UnderWork, label: 'UNDER WORK', color: 'bg-blue-100 text-blue-700' },
   { key: TaskStatus.DevDone, label: 'DEV DONE', color: 'bg-green-100 text-green-700' },
   { key: TaskStatus.QADone, label: 'QA DONE', color: 'bg-purple-100 text-purple-700' },
+  { key: TaskStatus.DocumentationDone, label: 'DOCS DONE', color: 'bg-orange-100 text-orange-700' },
   { key: TaskStatus.Committed, label: 'COMMITTED', color: 'bg-emerald-100 text-emerald-700' }
 ];
 
@@ -143,11 +144,11 @@ function TaskCard({ task, onStatusChange }: { task: Task; onStatusChange?: (task
           </div>
 
           <div className="space-y-2">
-            {task.assigned_role && (
+            {task.target_role && (
               <div className="flex items-center gap-2">
                 <User className="h-3 w-3" />
-                <Badge variant="outline" className={`text-xs ${ROLE_COLORS[task.assigned_role]}`}>
-                  {task.assigned_role.replace('_', ' ')}
+                <Badge variant="outline" className={`text-xs ${ROLE_COLORS[task.target_role]}`}>
+                  {task.target_role.replace('_', ' ')}
                 </Badge>
               </div>
             )}
@@ -197,7 +198,7 @@ function TaskColumn({
   const tasksInStatus = tasks.filter(task => task.status === status);
   
   const { isOver, setNodeRef } = useDroppable({
-    id: status,
+    id: `column-${status}`,
     data: {
       type: 'column',
       status,
@@ -205,8 +206,10 @@ function TaskColumn({
   });
 
   return (
-    <div className="flex-1 min-w-[300px]">
-      <Card className="h-full">
+    <div className="flex-1 min-w-[300px]" ref={setNodeRef}>
+      <Card className={`h-full transition-all ${
+        isOver ? 'ring-2 ring-blue-400 bg-blue-50/20' : ''
+      }`}>
         <CardHeader className="pb-2 px-3">
           <CardTitle className="flex items-center justify-between">
             <span className={`text-sm font-medium px-2 py-1 rounded-md ${color}`}>
@@ -219,13 +222,7 @@ function TaskColumn({
             items={tasksInStatus.map(t => t.id.toString())} 
             strategy={verticalListSortingStrategy}
           >
-            <div 
-              ref={setNodeRef}
-              className={`space-y-2 min-h-[500px] p-1 rounded-lg transition-colors ${
-                isOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''
-              }`}
-              data-status={status}
-            >
+            <div className="space-y-2 min-h-[500px] p-1 rounded-lg">
               {tasksInStatus.map(task => (
                 <DraggableTaskCard 
                   key={task.id} 
@@ -233,6 +230,13 @@ function TaskColumn({
                   onStatusChange={onStatusChange}
                 />
               ))}
+              
+              {/* Empty space to ensure droppable area */}
+              {tasksInStatus.length === 0 && (
+                <div className="h-20 flex items-center justify-center text-muted-foreground text-sm">
+                  Drop tasks here
+                </div>
+              )}
               
               <Button 
                 variant="outline" 
@@ -264,9 +268,15 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>(() => tasks || []);
   const [lastTasksUpdate, setLastTasksUpdate] = useState<string>('');
-  const [selectedAgentId, setSelectedAgentId] = useState<string>(() => 
-    localStorage.getItem('agent_id') || ''
-  );
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(() => {
+    const storedAgentId = localStorage.getItem('agent_id') || '';
+    // Clear invalid agent IDs that might have extra characters
+    if (storedAgentId && storedAgentId.includes(':')) {
+      localStorage.removeItem('agent_id');
+      return '';
+    }
+    return storedAgentId;
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -297,11 +307,11 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
   // Apply filters to tasks with memoization to prevent unnecessary recalculations
   const filteredTasks = useMemo(() => {
     return localTasks.filter(task => {
-      if (filters.role && task.assigned_role !== filters.role) return false;
+      if (filters.role && task.target_role !== filters.role) return false;
       if (filters.difficulty && task.difficulty !== filters.difficulty) return false;
       if (filters.status && task.status !== filters.status) return false;
       if (filters.complexity && task.complexity !== filters.complexity) return false;
-      if (filters.assignee && task.assigned_agent_id !== filters.assignee) return false;
+      if (filters.assignee && task.locked_by !== filters.assignee) return false;
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         const titleMatch = task.title.toLowerCase().includes(searchLower);
@@ -313,8 +323,35 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
   }, [localTasks, filters]);
 
   const handleStatusChange = useCallback(async (task: Task, newStatus: TaskStatus) => {
+    // Validate status before proceeding
+    if (typeof newStatus !== 'string') {
+      console.error('Invalid status type:', typeof newStatus, 'Value:', newStatus);
+      throw new Error('Status must be a string');
+    }
+    
+    const validStatuses = Object.values(TaskStatus) as string[];
+    if (!validStatuses.includes(newStatus)) {
+      console.error('Invalid status value:', newStatus, 'Expected one of:', validStatuses);
+      throw new Error(`Invalid status: ${newStatus}`);
+    }
+    
     // Get agent ID from state or localStorage
-    const agentId = selectedAgentId || localStorage.getItem('agent_id');
+    let agentId = selectedAgentId || localStorage.getItem('agent_id');
+    
+    // Clear invalid agent IDs that contain colons
+    if (agentId && agentId.includes(':')) {
+      localStorage.removeItem('agent_id');
+      agentId = '';
+    }
+    
+    console.log('HandleStatusChange debug:', {
+      selectedAgentId,
+      localStorageAgentId: localStorage.getItem('agent_id'),
+      finalAgentId: agentId,
+      taskId: task.id,
+      newStatus,
+      newStatusType: typeof newStatus
+    });
     
     if (!agentId) {
       alert('Please select an agent ID to update task status');
@@ -343,6 +380,13 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
 
     if (!over) return;
 
+    // Check if agent is selected before allowing drop
+    const agentId = selectedAgentId || localStorage.getItem('agent_id');
+    if (!agentId) {
+      alert('Please select an agent to move tasks. Use the dropdown above to select an agent.');
+      return; // Prevent the drop
+    }
+
     const taskId = active.id.toString();
     const task = localTasks.find(t => t.id.toString() === taskId);
     
@@ -351,14 +395,42 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
     // Get the status from the drop target data
     let newStatus: TaskStatus | null = null;
     
+    console.log('Drop target debug:', {
+      overId: over.id,
+      overData: over.data.current,
+      overType: over.data.current?.type
+    });
+    
     if (over.data.current?.type === 'column') {
       newStatus = over.data.current.status;
+    } else if (typeof over.id === 'string' && over.id.startsWith('column-')) {
+      // Extract status from column ID
+      const extractedStatus = over.id.replace('column-', '');
+      newStatus = extractedStatus as TaskStatus;
     } else {
-      // Fallback: check if over.id is a status
-      newStatus = over.id as TaskStatus;
+      console.warn('Could not determine status from drop target:', over.id, over.data.current);
+      return;
     }
 
-    if (!newStatus || newStatus === task.status) return;
+    console.log('Extracted newStatus:', newStatus, 'Type:', typeof newStatus);
+
+    // Ensure newStatus is a valid string value
+    if (!newStatus || typeof newStatus !== 'string' || newStatus === task.status) return;
+    
+    // Validate that the status is one of the expected values
+    const validStatuses = Object.values(TaskStatus) as string[];
+    if (!validStatuses.includes(newStatus)) {
+      console.error('Invalid status value:', newStatus, 'Expected one of:', validStatuses);
+      return;
+    }
+
+    console.log('About to update task status:', {
+      taskId: task.id,
+      currentStatus: task.status,
+      newStatus: newStatus,
+      newStatusType: typeof newStatus,
+      agentId
+    });
 
     // Optimistically update the local state
     const updatedTasks = localTasks.map(t => 
@@ -377,8 +449,9 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
       setLocalTasks(localTasks);
       setLastTasksUpdate(JSON.stringify(localTasks));
       console.error('Failed to update task status:', error);
+      alert(`Failed to update task status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, [localTasks, mutate, handleStatusChange]);
+  }, [localTasks, mutate, handleStatusChange, selectedAgentId]);
 
   if (isLoading && localTasks.length === 0) {
     return (
@@ -417,8 +490,8 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
         >
           <option value="">Select an agent...</option>
           {agents?.map(agent => (
-            <option key={agent.id} value={agent.id}>
-              {agent.name || agent.id} ({agent.role})
+            <option key={agent.id} value={agent.agent_id}>
+              {agent.name || agent.agent_id} ({agent.role})
             </option>
           ))}
         </select>

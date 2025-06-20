@@ -102,7 +102,8 @@ class EpicResponse(BaseModel):
     description: str
     created_at: datetime
     task_count: int = 0
-    completed_count: int = 0
+    completed_task_count: int = 0
+    in_progress_task_count: int = 0
     
     class Config:
         from_attributes = True
