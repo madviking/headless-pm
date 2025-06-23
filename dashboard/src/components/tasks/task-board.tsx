@@ -238,14 +238,6 @@ function TaskColumn({
                 </div>
               )}
               
-              <Button 
-                variant="outline" 
-                className="w-full border-dashed"
-                size="sm"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Task
-              </Button>
             </div>
           </SortableContext>
         </CardContent>
@@ -257,25 +249,36 @@ function TaskColumn({
 export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
   const { data: tasks = [], isLoading, error, mutate } = useApi(
     'tasks',
-    (client) => client.getTasks()
+    (client) => client.getTasks(),
+    {
+      refreshInterval: 5000, // Refresh every 5 seconds
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true
+    }
   );
 
   const { data: agents = [] } = useApi(
     'agents',
-    (client) => client.getAgents()
+    (client) => client.getAgents(),
+    {
+      refreshInterval: 30000 // Refresh agents every 30 seconds
+    }
   );
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>(() => tasks || []);
   const [lastTasksUpdate, setLastTasksUpdate] = useState<string>('');
   const [selectedAgentId, setSelectedAgentId] = useState<string>(() => {
-    const storedAgentId = localStorage.getItem('agent_id') || '';
-    // Clear invalid agent IDs that might have extra characters
-    if (storedAgentId && storedAgentId.includes(':')) {
-      localStorage.removeItem('agent_id');
-      return '';
+    if (typeof window !== 'undefined') {
+      const storedAgentId = localStorage.getItem('agent_id') || '';
+      // Clear invalid agent IDs that might have extra characters
+      if (storedAgentId && storedAgentId.includes(':')) {
+        localStorage.removeItem('agent_id');
+        return '';
+      }
+      return storedAgentId;
     }
-    return storedAgentId;
+    return '';
   });
 
   const sensors = useSensors(
@@ -288,7 +291,7 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
 
   // Save selected agent ID to localStorage
   useEffect(() => {
-    if (selectedAgentId) {
+    if (typeof window !== 'undefined' && selectedAgentId) {
       localStorage.setItem('agent_id', selectedAgentId);
     }
   }, [selectedAgentId]);
@@ -336,10 +339,10 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
     }
     
     // Get agent ID from state or localStorage
-    let agentId = selectedAgentId || localStorage.getItem('agent_id');
+    let agentId = selectedAgentId || (typeof window !== 'undefined' ? localStorage.getItem('agent_id') : '');
     
     // Clear invalid agent IDs that contain colons
-    if (agentId && agentId.includes(':')) {
+    if (typeof window !== 'undefined' && agentId && agentId.includes(':')) {
       localStorage.removeItem('agent_id');
       agentId = '';
     }
@@ -381,7 +384,7 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
     if (!over) return;
 
     // Check if agent is selected before allowing drop
-    const agentId = selectedAgentId || localStorage.getItem('agent_id');
+    const agentId = selectedAgentId || (typeof window !== 'undefined' ? localStorage.getItem('agent_id') : '');
     if (!agentId) {
       alert('Please select an agent to move tasks. Use the dropdown above to select an agent.');
       return; // Prevent the drop
