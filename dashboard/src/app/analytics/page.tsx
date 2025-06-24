@@ -52,8 +52,8 @@ export default function AnalyticsPage() {
 
     // Tasks by role
     const tasksByRole = tasks.reduce((acc, task) => {
-      if (task.assigned_role) {
-        acc[task.assigned_role] = (acc[task.assigned_role] || 0) + 1;
+      if (task.target_role) {
+        acc[task.target_role] = (acc[task.target_role] || 0) + 1;
       }
       return acc;
     }, {} as Record<AgentRole, number>);
@@ -70,7 +70,7 @@ export default function AnalyticsPage() {
     const completedTasks = tasks.filter(t => t.status === TaskStatus.Committed).length;
     const completionRate = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
 
-    // Average tasks per agent
+    // Average tasks per agent by role
     const activeAgents = agents.filter(a => {
       if (!a.last_seen) return false;
       const lastSeenTime = new Date(a.last_seen).getTime();
@@ -78,14 +78,22 @@ export default function AnalyticsPage() {
       return lastSeenTime > fiveMinutesAgo;
     });
 
+    // Calculate average tasks per agent by role
+    const avgTasksPerRole = Object.values(AgentRole).reduce((acc, role) => {
+      const roleAgents = activeAgents.filter(a => a.role === role);
+      const roleTasks = tasksByRole[role] || 0;
+      acc[role] = roleAgents.length > 0 ? roleTasks / roleAgents.length : 0;
+      return acc;
+    }, {} as Record<AgentRole, number>);
+
     const avgTasksPerAgent = activeAgents.length > 0 ? tasks.length / activeAgents.length : 0;
 
     // Epic progress
     const epicProgress = epics.map(epic => {
-      const epicTasks = tasks.filter(t => t.epic_id === epic.id);
-      const completed = epicTasks.filter(t => t.status === TaskStatus.Committed).length;
-      const progress = epicTasks.length > 0 ? (completed / epicTasks.length) * 100 : 0;
-      return { ...epic, progress, totalTasks: epicTasks.length, completedTasks: completed };
+      const totalTasks = epic.task_count || 0;
+      const completedTasks = epic.completed_task_count || 0;
+      const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      return { ...epic, progress, totalTasks, completedTasks };
     });
 
     // Team velocity (tasks completed per week)
@@ -95,6 +103,7 @@ export default function AnalyticsPage() {
       tasksByStatus,
       tasksByComplexity,
       tasksByRole,
+      avgTasksPerRole,
       weeklyActivity: {
         tasks: weeklyTasks.length,
         documents: weeklyDocs.length

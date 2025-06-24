@@ -93,7 +93,7 @@ def create_document(
 def list_documents(
     doc_type: Optional[DocumentType] = Query(None, description="Filter by document type"),
     author_id: Optional[str] = Query(None, description="Filter by author"),
-    limit: int = Query(50, description="Maximum number of documents to return"),
+    limit: int = Query(1000, description="Maximum number of documents to return"),
     db: Session = Depends(get_session)
 ):
     query = select(Document)
