@@ -8,6 +8,7 @@ from pathlib import Path
 
 # Add parent directory to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "agents" / "client"))
 
 # Load environment variables before any tests run
 def pytest_configure(config):

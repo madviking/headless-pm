@@ -199,7 +199,13 @@ class TestHeadlessPMClient(unittest.TestCase):
                     result = future.result()
                     self.created_agents.add(agent_id)
                     created_in_test.append(agent_id)
-                    self.assertIn("agent_id", result)
+                    # Check if agent_id is in the response (either directly or in nested agent object)
+                    if "agent_id" in result:
+                        self.assertEqual(result["agent_id"], agent_id)
+                    elif "agent" in result and "agent_id" in result["agent"]:
+                        self.assertEqual(result["agent"]["agent_id"], agent_id)
+                    else:
+                        self.fail(f"agent_id not found in response: {result}")
                     print(f"✓ Registered agent: {agent_id}")
                 except Exception as e:
                     self.fail(f"Failed to register agent {agent_id}: {e}")

@@ -22,7 +22,7 @@ from pathlib import Path
 
 def load_env_file():
     """Load .env file from the main project directory"""
-    env_path = Path(__file__).parent / '.env'
+    env_path = Path(__file__).parent.parent.parent / '.env'
     if env_path.exists():
         with open(env_path, 'r') as f:
             for line in f:

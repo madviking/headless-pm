@@ -4,10 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Environment Setup
 
+### Automated Setup (Recommended)
 ```bash
-# Setup virtual environment and install dependencies
+# Run universal setup script - handles platform-specific requirements
+./setup/universal_setup.sh
+
+# This will:
+# - Detect your architecture (ARM64 for native Mac, x86_64 for Claude Code)
+# - Create the appropriate virtual environment (venv or claude_venv)
+# - Install correct package versions for your platform
+# - Create .env from env-example if needed
+```
+
+### Manual Setup (if needed)
+```bash
+# For Claude Code (x86_64), use claude_venv:
+python -m venv claude_venv
+source claude_venv/bin/activate
+pip install pydantic==2.11.7 pydantic-core==2.33.2
+pip install -r setup/requirements.txt
+
+# For native Mac (ARM64), use standard venv:
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r setup/requirements.txt
 
 # Configure environment
@@ -59,8 +78,12 @@ The `start.sh` script automatically:
 
 ### Running Tests
 ```bash
-# IMPORTANT: Always use Claude virtual environment for testing
+# IMPORTANT: Use the appropriate virtual environment for your platform
+# For Claude Code (x86_64):
 source claude_venv/bin/activate
+
+# For native Mac (ARM64):
+source venv/bin/activate
 
 # Run all tests with coverage
 python -m pytest --cov=src --cov-report=term-missing

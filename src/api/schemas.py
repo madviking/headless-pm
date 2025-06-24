@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 from src.models.enums import TaskStatus, AgentRole, DifficultyLevel, TaskComplexity, ConnectionType, TaskType
@@ -48,16 +48,14 @@ class AgentResponse(BaseModel):
     connection_type: Optional[ConnectionType]
     last_seen: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AgentRegistrationResponse(BaseModel):
     agent: AgentResponse
     next_task: Optional["TaskResponse"] = None
     mentions: List["MentionResponse"] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ProjectContextResponse(BaseModel):
     project_name: str
@@ -85,8 +83,7 @@ class TaskResponse(BaseModel):
     task_type: Optional[TaskType] = TaskType.REGULAR
     poll_interval: Optional[int] = None  # seconds for waiting tasks
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TaskStatusUpdateResponse(BaseModel):
     task: TaskResponse
@@ -98,8 +95,7 @@ class TaskStatusUpdateResponse(BaseModel):
                                    description="Instruction for autonomous continuation")
     session_momentum: str = Field("high", description="high | medium | low - indicates work pace")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class EpicResponse(BaseModel):
     id: int
@@ -110,8 +106,7 @@ class EpicResponse(BaseModel):
     completed_task_count: int = 0
     in_progress_task_count: int = 0
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class FeatureResponse(BaseModel):
     id: int
@@ -119,8 +114,7 @@ class FeatureResponse(BaseModel):
     name: str
     description: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ChangelogResponse(BaseModel):
     id: int
@@ -131,8 +125,7 @@ class ChangelogResponse(BaseModel):
     notes: Optional[str] = None
     changed_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ErrorResponse(BaseModel):
     detail: str
@@ -162,8 +155,7 @@ class DocumentResponse(BaseModel):
     expires_at: Optional[datetime] = None
     mentions: List[str] = []  # List of mentioned agent_ids
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Service schemas
 class ServiceRegisterRequest(BaseModel):
@@ -186,8 +178,7 @@ class ServiceResponse(BaseModel):
     meta_data: Optional[Dict[str, Any]] = None
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Mention schemas
 class MentionResponse(BaseModel):
@@ -201,8 +192,7 @@ class MentionResponse(BaseModel):
     document_title: Optional[str] = None
     task_title: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Rebuild models to resolve forward references
 AgentRegistrationResponse.model_rebuild()

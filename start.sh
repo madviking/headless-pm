@@ -35,6 +35,16 @@ echo "🚀 Headless PM Startup Script"
 echo "==============================="
 echo -e "${NC}"
 
+# Detect architecture and suggest appropriate venv
+ARCH=$(uname -m)
+log_info "Detected architecture: $ARCH"
+
+if [[ "$ARCH" == "arm64" ]]; then
+    EXPECTED_VENV="venv"
+else
+    EXPECTED_VENV="claude_venv"
+fi
+
 # Check if .env file exists
 if [ ! -f ".env" ]; then
     log_error ".env file not found!"
@@ -52,11 +62,19 @@ fi
 
 log_success ".env file found"
 
-# Check if we're in a virtual environment (informational only)
+# Check if we're in a virtual environment
 if [ -n "$VIRTUAL_ENV" ]; then
     log_success "Virtual environment active: $VIRTUAL_ENV"
+    # Check if it's the expected venv for this architecture
+    if [[ ! "$VIRTUAL_ENV" == *"$EXPECTED_VENV"* ]]; then
+        log_warning "You're using a different venv than recommended for $ARCH architecture"
+        log_info "Recommended: $EXPECTED_VENV (run ./setup/universal_setup.sh to set up)"
+    fi
 else
-    log_info "No virtual environment detected (assuming system Python or user will activate manually)"
+    log_warning "No virtual environment detected!"
+    log_info "Please activate the virtual environment:"
+    echo "  source $EXPECTED_VENV/bin/activate"
+    log_info "Or run ./setup/universal_setup.sh to set up the environment"
 fi
 
 # Check Python version
@@ -76,9 +94,9 @@ log_info "Checking required packages..."
 if ! python -c "import fastapi, sqlmodel, uvicorn" 2>/dev/null; then
     log_error "Required packages not found or have compatibility issues!"
     log_info "This often happens with architecture mismatches (ARM64 vs x86_64)"
-    log_info "Recommended solutions:"
-    echo "  1. Use Claude virtual environment: ./setup/create_claude_venv.sh"
-    echo "  2. Recreate venv: rm -rf venv && python -m venv venv && source venv/bin/activate && pip install -r setup/requirements.txt"
+    log_info "Recommended solution:"
+    echo "  Run: ./setup/universal_setup.sh"
+    echo "  This will create the correct environment for your architecture ($ARCH)"
     exit 1
 else
     log_success "Required packages found"

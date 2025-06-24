@@ -1,0 +1,20 @@
+# Development dependencies (optional)
+# Install with: pip install -r setup/requirements-dev.txt
+
+# Code formatting and linting
+black>=23.0.0
+ruff>=0.1.0
+mypy>=1.0.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+
+# Testing extras
+pytest-asyncio>=0.21.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0  # For parallel test execution
+
+# Development tools
+ipython>=8.0.0
+pre-commit>=3.0.0

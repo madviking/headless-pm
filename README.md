@@ -9,18 +9,25 @@ I use this with Claude Code, but it should work with any LLM Agent.
 ## ⚡ Quick Start
 
 ```bash
-# Clone, setup environment, and start the API server
+# Clone the repository
 git clone <repository>
 cd headless-pm
 
-# Setup virtual environment and install dependencies
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r setup/requirements.txt
+# Run universal setup script (handles platform-specific requirements)
+./setup/universal_setup.sh
 
 # Start the server (handles database setup automatically)
 ./start.sh
 ```
+
+### Platform-Specific Setup Notes
+
+**Important:** Due to platform-specific dependencies (particularly pydantic), this project uses different virtual environments for different architectures:
+
+- **ARM64 (Native Mac)**: Uses `venv` with standard package installation
+- **x86_64 (Claude Code)**: Uses `claude_venv` with specific pydantic versions for compatibility
+
+The `universal_setup.sh` script automatically detects your architecture and creates the appropriate environment. This ensures compatibility whether you're running on native Mac hardware or within Claude Code's environment.
 
 The start script automatically checks dependencies, initializes database, and starts the server on `http://localhost:6969`.
 
@@ -71,15 +78,17 @@ The start script automatically checks dependencies, initializes database, and st
 - **File-based** agent instructions
 - **Stateless** agent design
 
-## 🚀 Quick Start
+## 📋 Detailed Setup
 
-### 1. Environment Setup
+### Manual Environment Setup (if not using universal_setup.sh)
 
-**For Claude Code (Recommended):**
+**For Claude Code:**
 ```bash
 # Create Claude-specific virtual environment
-./setup/create_claude_venv.sh
+python -m venv claude_venv
 source claude_venv/bin/activate
+pip install pydantic==2.11.7 pydantic-core==2.33.2
+pip install -r setup/requirements.txt
 ```
 
 **For Standard Development:**
@@ -89,13 +98,13 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r setup/requirements.txt
 ```
 
-### 2. Configuration
+### Configuration
 ```bash
-# Configure environment
+# Configure environment (if not already done by setup script)
 cp env-example .env
 # Edit .env with your settings
 
-# Initialize database
+# Initialize database (if needed)
 python -m src.cli.main init
 python -m src.cli.main seed  # Optional: add sample data
 ```
@@ -391,12 +400,52 @@ if task:
     agent.update_task_status(task['id'], "dev_done")
 ```
 
+## Testimonials
+"The headless PM system is working excellently for task management and continuous workflow!" —— Claude Code (spotaneous comment after completing a task)
+"Very interesting." —— Nameless Reddit user
+"Doesn't work for me." —— Another nameless Reddit user
+"I don't like Python." —— Yet another nameless Reddit user
+"The Headless PM system keeps me continuously productive - I register once and automatically receive tasks matching my skills, with no downtime between assignments. The built-in polling and status tracking means I stay engaged with meaningful work while the system handles task distribution efficiently." --- Claude Code (when asked about using Headless PM)
+
+## 🧪 Testing
+
+### Running Tests
+
+Use the universal test runner that automatically selects the correct environment:
+```bash
+./run_tests.sh
+```
+
+Or manually:
+```bash
+# Activate the appropriate venv for your platform
+source venv/bin/activate      # ARM64 (native Mac)
+# or
+source claude_venv/bin/activate  # x86_64 (Claude Code)
+
+# Run all tests
+python -m pytest tests/
+
+# Run with coverage
+python -m pytest --cov=src --cov-report=term-missing
+
+# Run specific test file
+python -m pytest tests/unit/test_api_routes.py -v
+```
+
+### Test Structure
+- `tests/unit/` - Unit tests with real integration (no mocking)
+- `tests/test_headless_pm_client.py` - Integration tests for the client
+- All tests use file-based SQLite for proper transaction handling
+- 100% of tests passing on both platforms
+
 ## 🤝 Contributing
 
-1. Use the Claude virtual environment for development
+1. Follow TDD without mocking things in the UI
 2. Run tests before submitting changes
 3. Follow the established patterns in the codebase
 4. Update documentation for new features
+5. Refer to CLAUDE.md for coding guidelines
 
 ## 📄 License
 

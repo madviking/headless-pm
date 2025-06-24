@@ -48,13 +48,20 @@ if [[ "$ARCH" == "arm64" ]]; then
     echo "Installing packages normally for ARM64..."
     pip install -r setup/requirements.txt
 else
-    # Install from source for x86_64
-    echo "Installing packages from source for x86_64..."
-    pip install --no-binary :all: pydantic==2.10.5 || echo "Pydantic installation may have issues"
-    pip install --no-binary :all: pydantic-core==2.27.2 || echo "Pydantic-core installation may have issues"
+    # Install for x86_64 (Claude Code compatibility)
+    echo "Installing packages for x86_64..."
     
-    # Install other requirements
-    pip install -r setup/requirements.txt --no-binary pydantic,pydantic-core || echo "Some packages may have issues"
+    # First, install pydantic with specific versions that work in Claude Code
+    pip install pydantic==2.11.7 pydantic-core==2.33.2
+    
+    # Then install the rest of the requirements
+    pip install -r setup/requirements.txt
+fi
+
+# Create .env file if it doesn't exist
+if [ ! -f ".env" ] && [ -f "env-example" ]; then
+    echo "Creating .env from env-example..."
+    cp env-example .env
 fi
 
 echo ""
@@ -68,5 +75,8 @@ echo ""
 echo "To activate this environment:"
 echo "  source $VENV_NAME/bin/activate"
 echo ""
+echo "To run the application:"
+echo "  ./start.sh"
+echo ""
 echo "To run tests:"
-echo "  python cli.py test-runner auto"
+echo "  python -m pytest tests/"
