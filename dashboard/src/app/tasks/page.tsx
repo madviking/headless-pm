@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PageLayout } from '@/components/layout/page-layout';
-import { TaskBoard } from '@/components/tasks/task-board';
+import { TaskBoard } from '@/components/tasks/task-board-merged';
 import { TaskFilters, type TaskFilters as TaskFiltersType } from '@/components/tasks/task-filters';
 import { TaskStats } from '@/components/tasks/task-stats';
 import { TaskTimeline } from '@/components/tasks/task-timeline';

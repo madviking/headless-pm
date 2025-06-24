@@ -109,7 +109,20 @@ uvicorn src.main:app --reload --port 6969
 python -m src.cli.main serve --port 6969
 ```
 
-### 4. Monitor with Dashboard
+### 4. Setup on your own project (most common use case)
+- Copy the entire directory from agents/client to your project root renaming it as headlesspm. 
+- Create .env file with your API key inside this folder
+- Start your sessions like this (one of each role recommended):
+```bash
+claude < headlesspm/pm.md
+```
+- You can directly chat with the PM agent and ask it to create epics and tasks, assign them to agents, and track progress.
+- Chatting work even without connecting with MCP. In fact, MCP server doesn't provide much value over using it directly with the client.
+
+Once Claude completes its task, it will automatically get a new task as a response. 
+
+
+### 5. Monitor with Dashboard
 
 #### CLI Dashboard
 ```bash
@@ -133,6 +146,8 @@ The web dashboard provides a real-time view of your project:
 - **Recent Activity Feed** - Live updates of task changes and communications
 - **Service Health** - Monitor all registered services and their status
 - **Analytics** - Task completion rates, agent productivity, and more
+
+
 
 ![Epic Progress](docs/images/dashboard-epics.png)
 

@@ -27,6 +27,7 @@ import { Plus, User, Clock, GitBranch, Flag, Calendar } from 'lucide-react';
 import { Task, TaskStatus, AgentRole, TaskDifficulty, TaskComplexity } from '@/lib/types';
 import { format } from 'date-fns';
 import { TaskFilters } from './task-filters';
+import { TaskDetailModal } from './task-detail-modal';
 import { HeadlessPMClient } from '@/lib/api/client';
 
 const TASK_STATUSES = [
@@ -57,7 +58,7 @@ const COMPLEXITY_COLORS = {
   [TaskComplexity.Major]: 'bg-orange-500 text-white'
 };
 
-function DraggableTaskCard({ task, onStatusChange }: { task: Task; onStatusChange?: (task: Task, newStatus: TaskStatus) => void }) {
+function DraggableTaskCard({ task, onStatusChange, onTaskClick }: { task: Task; onStatusChange?: (task: Task, newStatus: TaskStatus) => void; onTaskClick?: (task: Task) => void }) {
   const {
     attributes,
     listeners,
@@ -66,7 +67,7 @@ function DraggableTaskCard({ task, onStatusChange }: { task: Task; onStatusChang
     transition,
     isDragging,
   } = useSortable({
-    id: task.id.toString(),
+    id: `task-${task.id}`, // Changed to use string ID with prefix
     data: {
       type: 'task',
       task,
@@ -76,30 +77,36 @@ function DraggableTaskCard({ task, onStatusChange }: { task: Task; onStatusChang
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
   };
 
-  if (isDragging) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="mb-3 opacity-50"
-      >
-        <Card className="border-dashed border-2">
-          <CardContent className="p-4 h-32" />
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TaskCard task={task} onStatusChange={onStatusChange} />
+    <div ref={setNodeRef} style={style}>
+      <TaskCard 
+        task={task} 
+        onStatusChange={onStatusChange} 
+        onTaskClick={onTaskClick}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        isDragging={isDragging}
+      />
     </div>
   );
 }
 
-function TaskCard({ task, onStatusChange }: { task: Task; onStatusChange?: (task: Task, newStatus: TaskStatus) => void }) {
+function TaskCard({ 
+  task, 
+  onStatusChange, 
+  onTaskClick,
+  dragHandleProps,
+  isDragging
+}: { 
+  task: Task; 
+  onStatusChange?: (task: Task, newStatus: TaskStatus) => void; 
+  onTaskClick?: (task: Task) => void;
+  dragHandleProps?: any;
+  isDragging?: boolean;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
   const getTaskIcon = (title: string) => {
     const lower = title.toLowerCase();
     if (lower.includes('navigation') || lower.includes('ui')) return '🎨';
@@ -119,8 +126,28 @@ function TaskCard({ task, onStatusChange }: { task: Task; onStatusChange?: (task
   };
 
   return (
-    <Card className="mb-2 cursor-pointer hover:shadow-md transition-shadow">
+    <Card 
+      className={`mb-2 hover:shadow-md transition-shadow relative ${
+        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+      }`}
+      {...dragHandleProps}
+      onDoubleClick={(e) => {
+        // Prevent double click from interfering with drag
+        if (!isDragging) {
+          e.stopPropagation();
+          onTaskClick?.(task);
+        }
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <CardContent className="p-3">
+        {isHovered && (
+          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+            Double-click to view details
+            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+          </div>
+        )}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -187,13 +214,15 @@ function TaskColumn({
   label, 
   color, 
   tasks, 
-  onStatusChange 
+  onStatusChange,
+  onTaskClick
 }: { 
   status: TaskStatus; 
   label: string; 
   color: string; 
   tasks: Task[]; 
   onStatusChange?: (task: Task, newStatus: TaskStatus) => void;
+  onTaskClick?: (task: Task) => void;
 }) {
   const tasksInStatus = tasks.filter(task => task.status === status);
   
@@ -207,7 +236,7 @@ function TaskColumn({
 
   return (
     <div className="flex-1 min-w-[300px]" ref={setNodeRef}>
-      <Card className={`h-full transition-all ${
+      <Card className={`h-full flex flex-col transition-all ${
         isOver ? 'ring-2 ring-blue-400 bg-blue-50/20' : ''
       }`}>
         <CardHeader className="pb-2 px-3">
@@ -217,27 +246,29 @@ function TaskColumn({
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 px-2">
+        <CardContent className="pt-0 px-2 flex-1 flex flex-col">
           <SortableContext 
-            items={tasksInStatus.map(t => t.id.toString())} 
+            items={tasksInStatus.map(t => `task-${t.id}`)} 
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-2 min-h-[500px] p-1 rounded-lg">
+            <div className="flex flex-col flex-1 gap-2 min-h-[500px] p-1 rounded-lg">
               {tasksInStatus.map(task => (
                 <DraggableTaskCard 
                   key={task.id} 
                   task={task} 
                   onStatusChange={onStatusChange}
+                  onTaskClick={onTaskClick}
                 />
               ))}
               
-              {/* Empty space to ensure droppable area */}
-              {tasksInStatus.length === 0 && (
-                <div className="h-20 flex items-center justify-center text-muted-foreground text-sm">
-                  Drop tasks here
-                </div>
-              )}
-              
+              {/* Flexible empty space to make entire column droppable */}
+              <div className="flex-1 min-h-[100px]">
+                {tasksInStatus.length === 0 && (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    Drop tasks here
+                  </div>
+                )}
+              </div>
             </div>
           </SortableContext>
         </CardContent>
@@ -251,9 +282,7 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
     'tasks',
     (client) => client.getTasks(),
     {
-      refreshInterval: 5000, // Refresh every 5 seconds
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true
+      refetchInterval: 10000 // Refresh every 10 seconds
     }
   );
 
@@ -268,26 +297,32 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>(() => tasks || []);
   const [lastTasksUpdate, setLastTasksUpdate] = useState<string>('');
-  const [selectedAgentId, setSelectedAgentId] = useState<string>(() => {
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Reduced from 8 to make it more responsive
+        delay: 100, // Add small delay to prevent accidental drags
+        tolerance: 5,
+      },
+    })
+  );
+
+  // Load agent ID from localStorage after hydration
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedAgentId = localStorage.getItem('agent_id') || '';
       // Clear invalid agent IDs that might have extra characters
       if (storedAgentId && storedAgentId.includes(':')) {
         localStorage.removeItem('agent_id');
-        return '';
+      } else if (storedAgentId) {
+        setSelectedAgentId(storedAgentId);
       }
-      return storedAgentId;
     }
-    return '';
-  });
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
+  }, []);
 
   // Save selected agent ID to localStorage
   useEffect(() => {
@@ -371,46 +406,66 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
     }
   }, [selectedAgentId]);
 
+  const handleTaskClick = useCallback((task: Task) => {
+    setSelectedTask(task);
+    setIsTaskModalOpen(true);
+  }, []);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
-    const task = localTasks.find(t => t.id.toString() === active.id);
+    // Extract task ID from the string ID format "task-123"
+    const taskId = active.id.toString().replace('task-', '');
+    const task = localTasks.find(t => t.id.toString() === taskId);
     setActiveTask(task || null);
+    
+    // Add class to body to prevent text selection during drag
+    document.body.classList.add('dnd-active');
   }, [localTasks]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
+    
+    // Remove class from body
+    document.body.classList.remove('dnd-active');
 
     if (!over) return;
 
     // Check if agent is selected before allowing drop
-    const agentId = selectedAgentId || (typeof window !== 'undefined' ? localStorage.getItem('agent_id') : '');
+    const agentId = selectedAgentId;
     if (!agentId) {
       alert('Please select an agent to move tasks. Use the dropdown above to select an agent.');
       return; // Prevent the drop
     }
 
-    const taskId = active.id.toString();
-    const task = localTasks.find(t => t.id.toString() === taskId);
+    // Extract task ID from the string ID format "task-123"
+    const taskIdString = active.id.toString().replace('task-', '');
+    const task = localTasks.find(t => t.id.toString() === taskIdString);
     
     if (!task) return;
 
     // Get the status from the drop target data
     let newStatus: TaskStatus | null = null;
     
-    console.log('Drop target debug:', {
-      overId: over.id,
-      overData: over.data.current,
-      overType: over.data.current?.type
-    });
-    
+    // First try to get status from the column data
     if (over.data.current?.type === 'column') {
       newStatus = over.data.current.status;
-    } else if (typeof over.id === 'string' && over.id.startsWith('column-')) {
-      // Extract status from column ID
+    } 
+    // If dropping on a task, find which column it's in
+    else if (over.id.toString().startsWith('task-')) {
+      const overTaskId = over.id.toString().replace('task-', '');
+      const overTask = localTasks.find(t => t.id.toString() === overTaskId);
+      if (overTask) {
+        newStatus = overTask.status;
+      }
+    }
+    // Fallback to column ID parsing
+    else if (typeof over.id === 'string' && over.id.startsWith('column-')) {
       const extractedStatus = over.id.replace('column-', '');
       newStatus = extractedStatus as TaskStatus;
-    } else {
+    }
+    
+    if (!newStatus) {
       console.warn('Could not determine status from drop target:', over.id, over.data.current);
       return;
     }
@@ -508,6 +563,10 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => {
+          setActiveTask(null);
+          document.body.classList.remove('dnd-active');
+        }}
       >
         <div className="flex gap-4 overflow-x-auto pb-4">
           {TASK_STATUSES.map((statusConfig) => (
@@ -518,16 +577,28 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
               color={statusConfig.color}
               tasks={filteredTasks}
               onStatusChange={handleStatusChange}
+              onTaskClick={handleTaskClick}
             />
           ))}
         </div>
         
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeTask ? (
-            <TaskCard task={activeTask} />
+            <div className="opacity-90">
+              <TaskCard task={activeTask} isDragging={true} />
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <TaskDetailModal
+        task={selectedTask}
+        isOpen={isTaskModalOpen}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setSelectedTask(null);
+        }}
+      />
     </div>
   );
 }

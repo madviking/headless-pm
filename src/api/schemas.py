@@ -92,6 +92,11 @@ class TaskStatusUpdateResponse(BaseModel):
     task: TaskResponse
     next_task: Optional[TaskResponse] = None
     workflow_status: str = Field(..., description="continue | waiting | no_tasks")
+    task_completed: Optional[int] = Field(None, description="ID of completed task")
+    auto_continue: bool = Field(True, description="Whether to automatically continue to next task")
+    continuation_prompt: str = Field("Continue with the next task without waiting for confirmation", 
+                                   description="Instruction for autonomous continuation")
+    session_momentum: str = Field("high", description="high | medium | low - indicates work pace")
     
     class Config:
         from_attributes = True

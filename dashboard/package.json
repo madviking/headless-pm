@@ -34,6 +34,7 @@
     "postcss": "^8.5.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^2.15.3",
     "swr": "^2.3.3",
     "tailwind-merge": "^3.3.1",

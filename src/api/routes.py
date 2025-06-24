@@ -27,9 +27,12 @@ def get_next_task_for_agent(agent: Agent, db: Session) -> Optional[TaskResponse]
     """Helper function to get the next available task for an agent"""
     # Determine which statuses to look for based on role
     if agent.role == AgentRole.QA:
-        # QA tests dev_done tasks
+        # QA tests dev_done tasks OR gets created tasks assigned to QA
         query = select(Task).where(
-            Task.status == TaskStatus.DEV_DONE,
+            (
+                (Task.status == TaskStatus.DEV_DONE) |
+                ((Task.status == TaskStatus.CREATED) & (Task.target_role == AgentRole.QA))
+            ),
             Task.locked_by_id.is_(None)
         )
     else:
@@ -534,7 +537,11 @@ def update_task_status(task_id: int, request: TaskStatusUpdateRequest,
     return TaskStatusUpdateResponse(
         task=task_response,
         next_task=next_task,
-        workflow_status=workflow_status
+        workflow_status=workflow_status,
+        task_completed=task_id,
+        auto_continue=True if next_task and next_task.task_type != TaskType.WAITING else False,
+        continuation_prompt="Continue with the next task without waiting for confirmation" if next_task else "No more tasks available",
+        session_momentum="high" if next_task and next_task.task_type != TaskType.WAITING else "low"
     )
 
 

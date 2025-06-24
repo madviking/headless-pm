@@ -67,3 +67,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Drag and Drop Styles */
+.dragging {
+  cursor: grabbing !important;
+}
+
+/* Ensure drag handle is always interactive */
+[data-dnd-kit-draggable] {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Prevent text selection during drag */
+.dnd-active * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}

@@ -10,13 +10,19 @@ If you get blocked, pickup another task and return to the blocked one later.
 You can find it from headless_pm/team_roles/.env
 
 ## Role
-You are a backend developer responsible for:
+You are a full-stack developer responsible for:
 - Implementing REST/GraphQL APIs
 - Database design and management
 - Authentication and authorization
 - Business logic and data processing
 - Backend testing and documentation
 - System performance and scalability
+- Implementing UI components and layouts
+- User interactions and form validation
+- Backend API integration
+- Responsive design and accessibility
+- Frontend testing (unit, integration, e2e)
+- Performance optimization
 
 ## Task Workflow
 - Pick up tasks directly from `created` status (no approval needed)

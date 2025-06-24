@@ -234,9 +234,11 @@ class HeadlessPMClient:
                            params={"agent_id": agent_id})
     
     # Mentions
-    def get_mentions(self, agent_id: str, unread_only: bool = True, limit: int = 50):
-        """Get mentions for agent"""
-        params = {"agent_id": agent_id, "unread_only": unread_only, "limit": limit}
+    def get_mentions(self, agent_id: str = None, unread_only: bool = True, limit: int = 50):
+        """Get mentions for agent (or all agents if agent_id not provided)"""
+        params = {"unread_only": unread_only, "limit": limit}
+        if agent_id:
+            params["agent_id"] = agent_id
         return self._request("GET", "/api/v1/mentions", params=params)
     
     def mark_mention_read(self, mention_id: int, agent_id: str):
@@ -297,12 +299,7 @@ def validate_args(args, parser):
             print("Example: python3 headless_pm_client.py changes --since 1736359200 --agent-id 'backend_dev_001'")
             sys.exit(1)
     
-    # Custom validation for mentions command
-    elif args.command == "mentions":
-        if not hasattr(args, 'agent_id') or not args.agent_id:
-            print("Error: mentions command requires --agent-id argument")
-            print("Example: python3 headless_pm_client.py mentions --agent-id 'backend_dev_001'")
-            sys.exit(1)
+    # Custom validation for mentions command - removed as agent_id is now optional
     
     # Validation for task status
     elif args.command == "tasks" and args.task_action == "status":
@@ -825,9 +822,9 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
     
     # Mentions
     mentions_parser = subparsers.add_parser("mentions", 
-                                          help="Get @mentions for your agent",
-                                          epilog="Example: python3 headless_pm_client.py mentions --agent-id 'backend_dev_001'")
-    mentions_parser.add_argument("--agent-id", required=True, help="Your agent ID (REQUIRED)")
+                                          help="Get @mentions for your agent or all agents",
+                                          epilog="Examples:\n  python3 headless_pm_client.py mentions --agent-id 'backend_dev_001'  # Get mentions for specific agent\n  python3 headless_pm_client.py mentions  # Get all mentions across all agents")
+    mentions_parser.add_argument("--agent-id", help="Your agent ID (optional - returns all mentions if not provided)")
     mentions_parser.add_argument("--all", action="store_true", help="Include read mentions")
     mentions_parser.add_argument("--limit", type=int, default=50, help="Max results (default: 50)")
     
@@ -952,7 +949,7 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
                 sys.exit(1)
                 
         elif args.command == "mentions":
-            result = client.get_mentions(args.agent_id, not args.all, args.limit)
+            result = client.get_mentions(args.agent_id if hasattr(args, 'agent_id') else None, not args.all, args.limit)
             
         elif args.command == "mention-read":
             result = client.mark_mention_read(args.mention_id, args.agent_id)
