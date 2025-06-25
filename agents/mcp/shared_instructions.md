@@ -69,8 +69,9 @@ Say: "Show me the next available task"
 ### 4. Continuous Work Loop (CRITICAL)
 **🔄 NEVER STOP WORKING - MAINTAIN CONTINUOUS OPERATION**:
 - **IMMEDIATELY** check for next task after completing one
-- If no real tasks available, continue monitoring (system will provide waiting tasks)
-- Poll for new tasks every 5 minutes during waiting periods
+- **The API now waits up to 3 minutes for new tasks automatically** - no need for client-side polling
+- If no real tasks available, the system will provide waiting tasks
+- Simply request the next task again to continue monitoring
 - Never end your session - maintain continuous operation
 - The enhanced task status update API automatically provides your next task
 - Always transition directly from one task to the next without gaps
@@ -122,12 +123,12 @@ For microservices you're running:
 - Update status if service goes down
 
 ### Monitoring & Continuous Operation
-- **CONTINUOUS POLLING**: Check for new tasks every 5 minutes when waiting
+- **CONTINUOUS MONITORING**: The API automatically waits up to 3 minutes for new tasks
 - Poll for changes regularly (every 10-30 seconds) during active work
 - Check for mentions and respond immediately
 - Respond to critical issues quickly
 - **NEVER GO IDLE**: Always have either a real task or waiting task active
-- Use the enhanced APIs that automatically provide next tasks
+- Use the enhanced APIs that automatically provide next tasks and handle waiting
 
 ## Error Handling
 

@@ -3,6 +3,8 @@ from sqlmodel import Session, select
 from typing import List, Optional
 from datetime import datetime
 import os
+import asyncio
+import time
 
 from src.models.database import get_session
 from src.api.dependencies import get_db
@@ -23,24 +25,42 @@ from pathlib import Path
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 
+def _cleanup_stale_locks(db: Session, cutoff_time: datetime) -> None:
+    """Helper function to unlock tasks that are locked by inactive agents"""
+    # Get all locked tasks where the locking agent hasn't been seen recently
+    stale_locked_tasks = db.exec(
+        select(Task, Agent).join(Agent, Task.locked_by_id == Agent.id).where(
+            Task.locked_by_id.is_not(None),
+            Agent.last_seen <= cutoff_time
+        )
+    ).all()
+    
+    # Unlock stale tasks
+    for task, agent in stale_locked_tasks:
+        print(f"Unlocking stale task {task.id} (was locked by inactive agent {agent.agent_id})")
+        task.locked_by_id = None
+        task.locked_at = None
+        db.add(task)
+    
+    db.commit()
+
 def get_next_task_for_agent(agent: Agent, db: Session) -> Optional[TaskResponse]:
     """Helper function to get the next available task for an agent"""
+    from datetime import timedelta
+    cutoff_time = datetime.utcnow() - timedelta(minutes=30)  # Consider agent active if seen in last 30 min
+    
+    # First, clean up stale locks - unlock tasks that are locked by inactive agents
+    _cleanup_stale_locks(db, cutoff_time)
+    
     # Determine which statuses to look for based on role
     if agent.role == AgentRole.QA:
-        # QA tests dev_done tasks OR gets created tasks assigned to QA
+        # QA tests ALL dev_done tasks regardless of target role
         query = select(Task).where(
-            (
-                (Task.status == TaskStatus.DEV_DONE) |
-                ((Task.status == TaskStatus.CREATED) & (Task.target_role == AgentRole.QA))
-            ),
+            Task.status == TaskStatus.DEV_DONE,
             Task.locked_by_id.is_(None)
         )
     else:
         # Developers (including PM/Architect) work on created tasks
-        # Check if there are available agents at lower skill levels for this role
-        from datetime import timedelta
-        cutoff_time = datetime.utcnow() - timedelta(minutes=30)  # Consider agent active if seen in last 30 min
-        
         # Get active agents for this role at different skill levels
         active_agents = db.exec(
             select(Agent).where(
@@ -107,11 +127,28 @@ def get_next_task_for_agent(agent: Agent, db: Session) -> Optional[TaskResponse]
 
 def create_waiting_task(agent: Agent, poll_interval: int = 300) -> TaskResponse:
     """Create a synthetic waiting task for continuous polling"""
+    
+    # Polling instructions to include in the description
+    polling_instructions = f"""No active tasks available for {agent.role.value} (level: {agent.level.value}).
+
+The API automatically waits up to 3 minutes for new tasks to become available.
+
+To continuously monitor for new tasks, simply call the next task API again:
+
+GET /api/v1/tasks/next?role={agent.role.value}&level={agent.level.value}
+
+The API will:
+- Wait up to 3 minutes for a task to become available
+- Return immediately if a task is found
+- Return this waiting task if no tasks are available after 3 minutes
+
+Keep calling the next task endpoint in a loop to maintain continuous monitoring."""
+    
     return TaskResponse(
         id=-1,  # Negative ID to indicate synthetic task
         feature_id=-1,
-        title=f"Monitoring for new {agent.role.value} tasks",
-        description=f"No active tasks available. Polling for new {agent.role.value} tasks every {poll_interval} seconds. This is a synthetic task to keep agents active.",
+        title=f"Waiting for new {agent.role.value} tasks",
+        description=polling_instructions,
         created_by="system",
         target_role=agent.role,
         difficulty=agent.level,
@@ -120,7 +157,7 @@ def create_waiting_task(agent: Agent, poll_interval: int = 300) -> TaskResponse:
         status=TaskStatus.UNDER_WORK,
         locked_by=agent.agent_id,
         locked_at=datetime.utcnow(),
-        notes=f"Poll interval: {poll_interval} seconds",
+        notes=f"API waits {poll_interval//60} minutes for new tasks. Call GET /api/v1/tasks/next again to continue monitoring.",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
         task_type=TaskType.WAITING,
@@ -382,9 +419,9 @@ def create_task(request: TaskCreateRequest, agent_id: str, db: Session = Depends
 
 @router.get("/tasks/next", response_model=TaskResponse,
     summary="Get next available task",
-    description="Get the next task based on agent's role and skill level, or a waiting task if none available. Both 'role' and 'level' query parameters are required.")
-def get_next_task(role: AgentRole = None, level: DifficultyLevel = None, 
-                  db: Session = Depends(get_session)):
+    description="Get the next task based on agent's role and skill level. Waits up to 3 minutes if no tasks are available. Both 'role' and 'level' query parameters are required.")
+async def get_next_task(role: AgentRole = None, level: DifficultyLevel = None, 
+                       db: Session = Depends(get_session)):
     # Validate required parameters
     if role is None:
         raise HTTPException(
@@ -405,14 +442,31 @@ def get_next_task(role: AgentRole = None, level: DifficultyLevel = None,
         last_seen=datetime.utcnow()
     )
     
-    # Try to get a real task
-    next_task = get_next_task_for_agent(temp_agent, db)
+    # Wait up to 3 minutes for a task to become available
+    start_time = time.time()
+    timeout_seconds = 180  # 3 minutes
     
-    if next_task:
-        return next_task
-    else:
-        # Return a waiting task to keep agents active
-        return create_waiting_task(temp_agent, poll_interval=300)
+    while True:
+        # Try to get a real task
+        next_task = get_next_task_for_agent(temp_agent, db)
+        
+        if next_task:
+            return next_task
+        
+        # Check if we've exceeded the timeout
+        elapsed = time.time() - start_time
+        if elapsed >= timeout_seconds:
+            break
+        
+        # Wait 10 seconds before checking again
+        await asyncio.sleep(10)
+        
+        # Refresh the database session to get new data
+        db.expire_all()
+    
+    # If we get here, no task was found within the timeout period
+    # Return a waiting task to keep agents active
+    return create_waiting_task(temp_agent, poll_interval=300)
 
 @router.post("/tasks/{task_id}/lock", response_model=TaskResponse,
     summary="Lock a task",

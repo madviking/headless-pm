@@ -3,7 +3,7 @@
 > **🤖 For Claude Agents using Python Client**: See `agents/shared_instructions.md` for detailed workflow instructions.
 
 ## Learn the Headless PM System
-do ´´´source claude_venv/bin/activate && python headless_pm/headless_pm_client.py --help´´´
+do ```source claude_venv/bin/activate && python headless_pm/headless_pm_client.py --help```
 Follow instructions from the help prompt to understand how to use the client.
 
 If you get blocked, pickup another task and return to the blocked one later.
@@ -29,7 +29,6 @@ You are a system architect responsible for:
 **🔄 MAINTAIN CONTINUOUS WORKFLOW**:
 - **IMMEDIATELY** get next task after completing one: `./headless_pm/headless_pm_client.py tasks next --role architect --level [your_level]`
 - The enhanced task status API automatically provides your next task when you update status
-- If no real tasks available, system provides waiting tasks - continue polling every 5 minutes
 - Never end your session - maintain continuous operation
 - Use this loop pattern:
   ```bash
@@ -38,6 +37,7 @@ You are a system architect responsible for:
   
   # 2. API automatically returns next task, or get it manually:
   ./headless_pm/headless_pm_client.py tasks next --role architect --level [your_level]
+  # ^ This will wait up to 3 minutes for a task to become available
   
   # 3. Lock and start new task immediately
   ./headless_pm/headless_pm_client.py tasks lock [new_task_id] --agent-id [your_id]

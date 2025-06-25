@@ -123,10 +123,11 @@ python -m src.cli.main serve --port 6969
 - Create .env file with your API key inside this folder
 - Start your sessions like this (one of each role recommended):
 ```bash
-claude < headlesspm/pm.md
+claude < headlesspm/team_roles/pm.md
 ```
 - You can directly chat with the PM agent and ask it to create epics and tasks, assign them to agents, and track progress.
 - Chatting work even without connecting with MCP. In fact, MCP server doesn't provide much value over using it directly with the client.
+- If there are no tasks, api will take 3 minutes to respond. This turned out to be the most reliable way to keep the Claude session alive
 
 Once Claude completes its task, it will automatically get a new task as a response. 
 
@@ -401,11 +402,11 @@ if task:
 ```
 
 ## Testimonials
-"The headless PM system is working excellently for task management and continuous workflow!" —— Claude Code (spotaneous comment after completing a task)
-"Very interesting." —— Nameless Reddit user
-"Doesn't work for me." —— Another nameless Reddit user
-"I don't like Python." —— Yet another nameless Reddit user
-"The Headless PM system keeps me continuously productive - I register once and automatically receive tasks matching my skills, with no downtime between assignments. The built-in polling and status tracking means I stay engaged with meaningful work while the system handles task distribution efficiently." --- Claude Code (when asked about using Headless PM)
+- "The headless PM system is working excellently for task management and continuous workflow!" —— Claude Code (spotaneous comment after completing a task)
+- "Very interesting." —— Nameless Reddit user
+- "Doesn't work for me." —— Another nameless Reddit user
+- "I don't like Python." —— Yet another nameless Reddit user
+- "The Headless PM system keeps me continuously productive - I register once and automatically receive tasks matching my skills, with no downtime between assignments. The built-in polling and status tracking means I stay engaged with meaningful work while the system handles task distribution efficiently." --- Claude Code (when asked about using Headless PM)
 
 ## 🧪 Testing
 

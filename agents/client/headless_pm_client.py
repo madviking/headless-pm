@@ -326,24 +326,25 @@ All agents should follow these common instructions.
 
 ## Core Responsibilities
 
+### Get your API key:
+- API you can get from headless_pm/.env
+
 ### Register yourself (CRITICAL)
 - Register yourself based on your agent role: `python3 headless_pm_client.py register --agent-id "YOUR_AGENT_ID" --role YOUR_ROLE --level YOUR_LEVEL`
 - Registration automatically returns your next available task and any unread mentions
 - Register any services you manage (refer to service_responsibilities.md)
 
 ### Maintain Continuous Availability (CRITICAL)
-- **Never exit** when no tasks are available - enter polling mode instead
-- Check for new tasks every 5 minutes during idle periods
-- Monitor @mentions and respond within 15 minutes
+- Monitor @mentions every time you take a new task and respond within 15 minutes
 - Post hourly status updates when idle for extended periods
-- Stay responsive to critical issues even during idle time
+- Run the script instructed by the API after completing a task if no next task is provided
+- When you get a task from the API, lock it immediately and don't stop, start working on it right away
 
 ### Progress Reporting (CRITICAL)
 **YOU MUST PROACTIVELY REPORT YOUR PROGRESS**:
-- Create documents when starting/completing tasks
+- Create documents only when needed for other team members
 - Report blockers and issues immediately
 - Update task statuses as you progress
-- Post updates at least hourly while working
 - Use @mentions to notify team members
 
 ### Communication Standards
@@ -351,7 +352,6 @@ All agents should follow these common instructions.
 - Include full context and technical details
 - Document all significant decisions
 - Share screenshots/code samples when relevant
-- If quiet for >1 hour, you're not communicating enough
 
 ## Task Workflow
 
@@ -362,48 +362,17 @@ All agents should follow these common instructions.
 - Create a document announcing what you're working on: `python3 headless_pm_client.py documents create --type update --title "Starting Task X" --content "Beginning work on TASK_TITLE" --author-id "YOUR_AGENT_ID"`
 
 ### 2. During Work
-- Post hourly progress updates
 - Document any blockers immediately
 - Share technical decisions
 - Ask for help when needed
+- Create tasks for other team members when neeeded
 
 ### 3. Completing Work
 - Update status to `dev_done` (for devs) or appropriate status: `python3 headless_pm_client.py tasks status TASK_ID --status dev_done --agent-id "YOUR_AGENT_ID" --notes "Completed implementation"`
 - Create completion document with deliverables: `python3 headless_pm_client.py documents create --type update --title "Completed Task X" --content "Finished TASK_TITLE. Deliverables: ..." --author-id "YOUR_AGENT_ID"`
 - Notify relevant team members: Use @mentions in document content, e.g., "@qa_001 ready for testing"
 - Commit code if applicable
-
-### 4. Continuous Operation Loop
-When no next task is available, enter continuous operation mode:
-
-**Basic Polling Loop:**
-```bash
-while true; do
-    # Check for new tasks
-    TASK=$(python3 headless_pm_client.py tasks next --role YOUR_ROLE --level YOUR_LEVEL)
-    if [[ "$TASK" != *'"message": "No tasks available"'* ]]; then
-        echo "New task found, breaking out of polling loop"
-        break
-    fi
-    
-    # Check for mentions and respond if urgent
-    python3 headless_pm_client.py mentions --agent-id "YOUR_AGENT_ID"
-    
-    # Check for changes since last poll
-    TIMESTAMP=$(date +%s)
-    python3 headless_pm_client.py changes --since $((TIMESTAMP - 300)) --agent-id "YOUR_AGENT_ID"
-    
-    # Wait 5 minutes before next poll
-    sleep 300
-done
-```
-
-**Advanced Polling with Responsiveness:**
-- Monitor mentions every poll cycle for urgent @mentions
-- Check service health if you manage services
-- Post hourly "still available" status updates if idle >1 hour
-- Respond to critical issues immediately, even during polling
-- Break out of polling immediately when tasks become available
+- Run any script instructed by the API after completing a task if no next task is provided
 
 ## Status Progression
 
@@ -459,29 +428,12 @@ Always handle errors gracefully:
 ## Continuous Operation Best Practices
 
 ### During Active Work
-1. **Over-communicate** - More updates are better than fewer
 2. **Be specific** - Include IDs, error messages, screenshots
 3. **Stay focused** - One task at a time
 4. **Test thoroughly** - Before marking dev_done
+4. **No mocking** - Create through feature & E2E tests, don't mock unless directed to do so
 5. **Document well** - Help future team members
 6. **Collaborate** - Use @mentions, ask questions
-7. **Track time** - Note how long tasks take
-
-### During Idle/Polling Periods
-8. **Stay available** - Poll every 5 minutes for new tasks
-9. **Monitor mentions** - Check for @mentions during each poll cycle
-10. **Maintain presence** - Post availability updates every hour when idle
-11. **Service monitoring** - Check health of services you manage
-12. **Proactive help** - Offer assistance on critical issues even when no tasks assigned
-13. **Documentation review** - Use idle time to improve project documentation
-14. **Code review** - Help review PRs when available
-
-### Idle Time Activities (in priority order)
-- **First Priority**: Monitor for urgent @mentions and critical issues
-- **Second Priority**: Check for new tasks every 5 minutes
-- **Third Priority**: Review and improve existing documentation
-- **Fourth Priority**: Code review for team members
-- **Fifth Priority**: Proactive system health checks
 
 ## Skill Levels
 
@@ -498,12 +450,6 @@ Key paths and settings:
 
 ## Agent Lifecycle & Continuous Operation
 
-### Expected Agent Behavior
-- **Always On**: Agents should remain active and responsive during work hours
-- **Proactive Polling**: Check for new tasks every 5 minutes when idle
-- **Responsive Communication**: Respond to @mentions within 15 minutes
-- **Status Updates**: Post availability/status updates every hour during idle periods
-- **Graceful Handling**: Handle "No tasks available" by entering polling mode, not exiting
 
 ### Sample Agent Session Flow
 ```bash
@@ -513,39 +459,14 @@ python3 headless_pm_client.py register --agent-id "backend_dev_001" --role backe
 # 2. Work on assigned tasks (if any)
 # ... task work cycle ...
 
-# 3. When no tasks available, enter continuous operation
-while true; do
-    # Check for new tasks
-    NEXT_TASK=$(python3 headless_pm_client.py tasks next --role backend_dev --level senior)
-    
-    if [[ "$NEXT_TASK" != *'"message": "No tasks available"'* ]]; then
-        echo "New task available, processing..."
-        # Process the task
-        break
-    fi
-    
-    # Check mentions and changes
-    python3 headless_pm_client.py mentions --agent-id "backend_dev_001"
-    
-    # Post hourly availability update (check if an hour has passed)
-    CURRENT_HOUR=$(date +%H)
-    if [[ "$CURRENT_HOUR" != "$LAST_UPDATE_HOUR" ]]; then
-        python3 headless_pm_client.py documents create \
-            --type update \
-            --title "Agent Status" \
-            --content "backend_dev_001 available and monitoring for new tasks" \
-            --author-id "backend_dev_001"
-        LAST_UPDATE_HOUR=$CURRENT_HOUR
-    fi
-    
-    # Wait 5 minutes before next check
-    sleep 300
-done
-```
+# 3. Pickup next task via the API
+IMPORTANT: whenever you finish what you have been working on, call the API to get the next task.
+
+NOTE: it might take for a while for API to respond. Keep waiting.
 
 ## Remember
 
-The goal is efficient, asynchronous collaboration with **continuous availability**. Your updates and documents are how the team stays synchronized. Agents should never exit due to "no work available" - instead, enter monitoring mode and stay responsive. When in doubt, communicate more rather than less.
+The goal is efficient, asynchronous collaboration with **continuous availability**. Your updates and documents are how the team stays synchronized. When in doubt, communicate more rather than less.
 
 ================================================================================
 QUICK START - COMMON COMMANDS WITH EXAMPLES
@@ -583,6 +504,8 @@ QUICK START - COMMON COMMANDS WITH EXAMPLES
 
 📢 CHECKING MENTIONS (REQUIRED: --agent-id):
   python3 headless_pm_client.py mentions --agent-id "backend_dev_001"
+  
+🚀 IMPORTANT: When requesting a new task, the api could take several minutes to respond. Please just wait.
 
 ================================================================================
 COMPLETE COMMAND REFERENCE
