@@ -157,7 +157,7 @@ Keep calling the next task endpoint in a loop to maintain continuous monitoring.
         status=TaskStatus.UNDER_WORK,
         locked_by=agent.agent_id,
         locked_at=datetime.utcnow(),
-        notes=f"API waits {poll_interval//60} minutes for new tasks. Call GET /api/v1/tasks/next again to continue monitoring.",
+        notes="API waits 3 minutes for new tasks. Call GET /api/v1/tasks/next again to continue monitoring.",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
         task_type=TaskType.WAITING,
@@ -442,31 +442,37 @@ async def get_next_task(role: AgentRole = None, level: DifficultyLevel = None,
         last_seen=datetime.utcnow()
     )
     
-    # Wait up to 3 minutes for a task to become available
+    # Check immediately for available tasks
+    next_task = get_next_task_for_agent(temp_agent, db)
+    
+    if next_task:
+        return next_task
+    
+    # If no task available immediately, wait up to 3 minutes with shorter polling
     start_time = time.time()
     timeout_seconds = 180  # 3 minutes
     
     while True:
-        # Try to get a real task
-        next_task = get_next_task_for_agent(temp_agent, db)
-        
-        if next_task:
-            return next_task
-        
         # Check if we've exceeded the timeout
         elapsed = time.time() - start_time
         if elapsed >= timeout_seconds:
             break
         
-        # Wait 10 seconds before checking again
-        await asyncio.sleep(10)
+        # Wait 2 seconds before checking again
+        await asyncio.sleep(2)
         
         # Refresh the database session to get new data
         db.expire_all()
+        
+        # Try to get a real task again
+        next_task = get_next_task_for_agent(temp_agent, db)
+        
+        if next_task:
+            return next_task
     
     # If we get here, no task was found within the timeout period
     # Return a waiting task to keep agents active
-    return create_waiting_task(temp_agent, poll_interval=300)
+    return create_waiting_task(temp_agent, poll_interval=180)
 
 @router.post("/tasks/{task_id}/lock", response_model=TaskResponse,
     summary="Lock a task",
