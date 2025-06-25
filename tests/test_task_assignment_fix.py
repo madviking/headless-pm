@@ -12,7 +12,7 @@ from sqlmodel import Session, select, SQLModel, create_engine
 
 from src.models.models import Agent, Task, Epic, Feature
 from src.models.enums import TaskStatus, AgentRole, DifficultyLevel, TaskComplexity
-from src.api.routes import get_next_task_for_agent, _cleanup_stale_locks
+from src.services.task_service import get_next_task_for_agent, cleanup_stale_locks
 
 
 @pytest.fixture
@@ -229,7 +229,7 @@ def test_stale_lock_cleanup_function(session: Session):
     
     # Run the cleanup
     cutoff_time = datetime.utcnow() - timedelta(minutes=30)
-    _cleanup_stale_locks(session, cutoff_time)
+    cleanup_stale_locks(session)
     
     # Refresh the tasks
     session.refresh(active_task)
