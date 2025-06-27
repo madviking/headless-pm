@@ -4,7 +4,11 @@ A comprehensive REST API for coordinating LLM agents in software development pro
 
 You would usually create several copies of a repository locally, giving each agent a different directory to work in. Each agent can then register itself, retrieve tasks, communicate through the API, and finally commit to GIT.
 
-I use this with Claude Code, but it should work with any LLM Agent. 
+I use this with Claude Code, but it should work with any LLM Agent.
+
+## ⚠️ SECURITY NOTICE ⚠️
+
+**This system includes agent runners that can execute code and modify files automatically. Always review agent instructions and run in controlled environments. See the [Agent Runner Security Guide](#agent-runner-security) for important safety information.** 
 
 ## ⚡ Quick Start
 
@@ -440,6 +444,76 @@ python -m pytest tests/unit/test_api_routes.py -v
 - All tests use file-based SQLite for proper transaction handling
 - 100% of tests passing on both platforms
 
+## 🛡️ Agent Runner Security
+
+### Overview
+
+The Headless PM system includes automated agent runners that can execute code and modify files. While powerful for development automation, these tools require careful consideration of security implications.
+
+### Security Features
+
+✅ **Safe by Default**: Agents ask for permission before making changes  
+✅ **Environment Detection**: Automatically finds correct project paths  
+✅ **Session Logging**: All agent actions are logged for audit  
+✅ **Isolated Execution**: Each agent runs in its own session  
+
+### ⚠️ High-Risk Scenarios
+
+**NEVER use `--dangerously-skip-permissions` unless:**
+- You are in a completely controlled development environment
+- You have full backups of all important data
+- You completely trust the agent instructions and codebase
+- You understand that agents can execute ANY command without confirmation
+
+### 🔒 Recommended Safety Practices
+
+1. **Version Control**: Always use git and commit frequently
+2. **Isolated Environment**: Run agents in Docker or VMs when possible
+3. **Code Review**: Review agent instructions before running
+4. **Limited Scope**: Use `--one-task-only` for testing
+5. **Regular Backups**: Maintain backups of critical data
+6. **Monitor Activity**: Watch agent output and logs carefully
+
+### Using Agents in Your Projects
+
+The agent system is designed to be copied into your own projects:
+
+```bash
+# Copy the client system to your project
+./agents/client/setup_in_project.sh /path/to/your/project
+
+# This creates: your-project/headless_pm/
+# Contains client, runners, and team role instructions
+```
+
+### Global Installation
+
+After copying to your project, install the agent runner globally:
+
+```bash
+cd /path/to/your/project
+./headless_pm/runners/install.sh
+
+# Then run from anywhere in your project
+headless-agent backend_dev dev_001
+
+# Safe operation (asks for permission)
+headless-agent qa qa_001 --one-task-only
+
+# ⚠️ DANGEROUS - only in trusted environments with backups
+headless-agent backend_dev dev_001 --dangerously-skip-permissions
+```
+
+For detailed usage and safety guidelines, see: [Agent Runner README](agents/client/runners/README.md)
+
+### Risk Assessment
+
+| Risk Level | Usage Pattern | Recommendation |
+|------------|---------------|----------------|
+| 🟢 **Low** | Normal mode with permission prompts | Safe for development |
+| 🟡 **Medium** | `--one-task-only` mode | Good for testing |
+| 🔴 **High** | `--dangerously-skip-permissions` | Only in isolated environments |
+
 ## 🤝 Contributing
 
 1. Follow TDD without mocking things in the UI
@@ -447,6 +521,7 @@ python -m pytest tests/unit/test_api_routes.py -v
 3. Follow the established patterns in the codebase
 4. Update documentation for new features
 5. Refer to CLAUDE.md for coding guidelines
+6. **Security**: Review any changes to agent runners carefully
 
 ## 📄 License
 
