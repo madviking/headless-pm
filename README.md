@@ -474,6 +474,36 @@ The Headless PM system includes automated agent runners that can execute code an
 5. **Regular Backups**: Maintain backups of critical data
 6. **Monitor Activity**: Watch agent output and logs carefully
 
+### 🚀 Advanced Agent Runner (Claude Code Integration)
+
+The project now includes an **Advanced Agent Runner** specifically designed for **Claude Code** with enhanced automation features:
+
+- **Claude Code Hooks**: Leverages Claude Code's new hooks system for seamless integration
+- **Crash Recovery**: Automatic task persistence and recovery after Claude session interruptions
+- **Git Worktree Support**: Isolated worktrees for major tasks requiring feature branches
+- **Model Selection**: Automatic Claude model selection based on task seniority (Sonnet/Opus)
+- **Global Hooks**: Pre/post task validation and cleanup scripts for continuous operation
+- **Health Monitoring**: Periodic system health checks during long-running sessions
+- **Terminal UI**: Clean, colored output with operator intervention prompts
+
+**Note**: This runner is specifically built for Claude Code and uses Claude-specific model selection and execution patterns. While the basic shell runners work with any LLM, the Advanced Runner is optimized for Claude Code's capabilities and workflow.
+
+#### Usage
+```bash
+# Continuous operation (designed for Claude Code)
+python agents/client/advanced_runner/advanced_agent_runner.py \
+    --role backend_dev --agent-id dev_001
+
+# Single task mode (for testing)
+python agents/client/advanced_runner/advanced_agent_runner.py \
+    --role qa --agent-id qa_001 --single-task
+```
+
+#### Claude Code Hooks Integration
+The Advanced Runner can be integrated with Claude Code's hooks system to automatically trigger task execution based on events. This enables fully automated workflows where Claude Code can start working on tasks without manual intervention.
+
+For complete documentation, see: [Advanced Runner README](agents/client/advanced_runner/README.md)
+
 ### Using Agents in Your Projects
 
 The agent system is designed to be copied into your own projects:
