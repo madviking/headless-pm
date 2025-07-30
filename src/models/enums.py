@@ -1,16 +1,16 @@
 from enum import Enum
 
 class TaskStatus(str, Enum):
-    CREATED = "created"
-    UNDER_WORK = "under_work"
-    DEV_DONE = "dev_done"
-    TESTING = "testing"
-    QA_DONE = "qa_done"
-    DOCUMENTATION_DONE = "documentation_done"
-    COMMITTED = "committed"
+    CREATED = "CREATED"
+    UNDER_WORK = "UNDER_WORK"
+    DEV_DONE = "DEV_DONE"
+    TESTING = "TESTING"
+    QA_DONE = "QA_DONE"
+    DOCUMENTATION_DONE = "DOCUMENTATION_DONE"
+    COMMITTED = "COMMITTED"
     # Legacy statuses (deprecated but kept for backward compatibility)
-    EVALUATION = "evaluation"
-    APPROVED = "approved"
+    EVALUATION = "EVALUATION"
+    APPROVED = "APPROVED"
 
 class AgentRole(str, Enum):
     FRONTEND_DEV = "frontend_dev"

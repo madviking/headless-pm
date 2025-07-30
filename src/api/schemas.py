@@ -39,7 +39,8 @@ class TaskStatusUpdateRequest(BaseModel):
     @field_validator('status', mode='before')
     def normalize_status(cls, v):
         if isinstance(v, str):
-            return v.lower()
+            # Convert to uppercase to match enum values
+            return v.upper()
         return v
 
 class TaskCommentRequest(BaseModel):

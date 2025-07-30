@@ -270,21 +270,67 @@ start_dashboard() {
     fi
 }
 
-# Function to cleanup on exit
+# Function to cleanup on exit with timeout
 cleanup() {
-    log_info "Shutting down..."
+    log_info "Shutting down gracefully..."
+    
+    # First try graceful shutdown (SIGTERM)
+    PIDS_TO_KILL=""
     if [ ! -z "$MCP_PID" ]; then
-        kill $MCP_PID 2>/dev/null || true
+        PIDS_TO_KILL="$PIDS_TO_KILL $MCP_PID"
+        kill -TERM $MCP_PID 2>/dev/null || true
+    fi
+    if [ ! -z "$DASHBOARD_PID" ]; then
+        PIDS_TO_KILL="$PIDS_TO_KILL $DASHBOARD_PID"
+        kill -TERM $DASHBOARD_PID 2>/dev/null || true
+    fi
+    if [ ! -z "$API_PID" ]; then
+        PIDS_TO_KILL="$PIDS_TO_KILL $API_PID"
+        kill -TERM $API_PID 2>/dev/null || true
+    fi
+    
+    # Wait up to 30 seconds for graceful shutdown
+    if [ ! -z "$PIDS_TO_KILL" ]; then
+        log_info "Waiting up to 30 seconds for graceful shutdown..."
+        TIMEOUT=30
+        while [ $TIMEOUT -gt 0 ]; do
+            STILL_RUNNING=""
+            for PID in $PIDS_TO_KILL; do
+                if kill -0 $PID 2>/dev/null; then
+                    STILL_RUNNING="$STILL_RUNNING $PID"
+                fi
+            done
+            
+            if [ -z "$STILL_RUNNING" ]; then
+                log_success "All services stopped gracefully"
+                break
+            fi
+            
+            sleep 1
+            TIMEOUT=$((TIMEOUT - 1))
+        done
+        
+        # Force kill any remaining processes
+        if [ $TIMEOUT -eq 0 ] && [ ! -z "$STILL_RUNNING" ]; then
+            log_warning "Timeout reached. Force killing remaining processes..."
+            for PID in $STILL_RUNNING; do
+                kill -9 $PID 2>/dev/null || true
+            done
+            log_info "All services forcefully stopped"
+        fi
+    fi
+    
+    # Final cleanup messages
+    if [ ! -z "$MCP_PID" ]; then
         log_info "MCP server stopped"
     fi
     if [ ! -z "$DASHBOARD_PID" ]; then
-        kill $DASHBOARD_PID 2>/dev/null || true
         log_info "Dashboard stopped"
     fi
     if [ ! -z "$API_PID" ]; then
-        kill $API_PID 2>/dev/null || true
         log_info "API server stopped"
     fi
+    
     exit 0
 }
 

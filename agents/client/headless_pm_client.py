@@ -673,7 +673,7 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
                                      epilog="Example: python3 headless_pm_client.py tasks status 123 --status dev_done --agent-id 'backend_dev_001' --notes 'Implementation complete'")
     task_status.add_argument("task_id", type=int, help="Task ID")
     task_status.add_argument("--status", required=True, 
-                           choices=["created", "under_work", "dev_done", 
+                           choices=["created", "under_work", "dev_done", "testing",
                                    "qa_done", "documentation_done", "committed"],
                            help="New task status (REQUIRED)")
     task_status.add_argument("--agent-id", required=True, help="Your agent ID (REQUIRED)")
