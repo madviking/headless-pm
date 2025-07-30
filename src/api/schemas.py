@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 from src.models.enums import TaskStatus, AgentRole, DifficultyLevel, TaskComplexity, ConnectionType, TaskType
@@ -35,6 +35,12 @@ class TaskCreateRequest(BaseModel):
 class TaskStatusUpdateRequest(BaseModel):
     status: TaskStatus = Field(..., description="New status for the task")
     notes: Optional[str] = Field(None, description="Optional notes about the status change")
+    
+    @field_validator('status', mode='before')
+    def normalize_status(cls, v):
+        if isinstance(v, str):
+            return v.lower()
+        return v
 
 class TaskCommentRequest(BaseModel):
     comment: str = Field(..., description="Comment to add to the task")

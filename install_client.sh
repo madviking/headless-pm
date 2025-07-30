@@ -88,6 +88,30 @@ fi
 echo -e "${GREEN}✓ Using project path: $PROJECT_PATH${NC}"
 echo ""
 
+# Check Python version
+echo -e "${BLUE}Checking Python installation...${NC}"
+if command -v python3 &> /dev/null; then
+    PYTHON_CMD="python3"
+elif command -v python &> /dev/null; then
+    PYTHON_CMD="python"
+else
+    echo -e "${RED}Error: Python is not installed. Please install Python 3.11 or higher.${NC}"
+    exit 1
+fi
+
+# Check Python version
+PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
+PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
+PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
+
+if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 11 ]); then
+    echo -e "${RED}Error: Python 3.11+ is required. Found Python $PYTHON_VERSION${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Found Python $PYTHON_VERSION${NC}"
+echo ""
+
 # 2. Ask about auto-commit
 echo -e "${YELLOW}Step 2: Auto-commit Configuration${NC}"
 ENABLE_AUTOCOMMIT=false
@@ -137,8 +161,52 @@ cp -r "$SCRIPT_DIR/agents/client/"* "$PROJECT_PATH/headless_pm/"
 # Make Python client executable
 chmod +x "$PROJECT_PATH/headless_pm/headless_pm_client.py"
 
-# Create symlink in project root for easy access
-ln -sf "headless_pm/headless_pm_client.py" "$PROJECT_PATH/headless_pm_client.py"
+# Create virtual environment for headless_pm
+echo -e "${BLUE}Creating isolated Python environment...${NC}"
+cd "$PROJECT_PATH/headless_pm"
+$PYTHON_CMD -m venv .venv
+
+# Activate the virtual environment
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+else
+    # Windows support
+    source .venv/Scripts/activate
+fi
+
+# Install required dependencies
+echo -e "${BLUE}Installing dependencies...${NC}"
+pip install --upgrade pip > /dev/null 2>&1
+pip install requests python-dotenv typer rich > /dev/null 2>&1
+
+# Deactivate for now
+deactivate
+cd - > /dev/null
+
+echo -e "${GREEN}✓ Python environment created${NC}"
+
+# Create wrapper script that uses the venv
+cat > "$PROJECT_PATH/headless_pm_client.py" << 'EOF'
+#!/usr/bin/env python3
+"""Wrapper script that runs the actual client with the correct virtual environment."""
+import os
+import sys
+import subprocess
+
+# Get the directory of this script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+venv_python = os.path.join(script_dir, "headless_pm", ".venv", "bin", "python")
+if not os.path.exists(venv_python):
+    # Windows support
+    venv_python = os.path.join(script_dir, "headless_pm", ".venv", "Scripts", "python.exe")
+
+actual_client = os.path.join(script_dir, "headless_pm", "headless_pm_client.py")
+
+# Run the actual client with the venv Python
+subprocess.run([venv_python, actual_client] + sys.argv[1:])
+EOF
+
+chmod +x "$PROJECT_PATH/headless_pm_client.py"
 
 # Create .env file inside headless_pm directory
 echo -e "${BLUE}Creating .env file...${NC}"
@@ -148,6 +216,20 @@ API_KEY="$API_KEY"
 
 # Server Configuration (default: local)
 HEADLESS_PM_URL="http://localhost:6969"
+EOF
+
+# Create .gitignore to exclude venv
+cat > "$PROJECT_PATH/headless_pm/.gitignore" << EOF
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# Environment files (contains API keys)
+.env
+
+# Agent logs
+agent_logs/
 EOF
 
 # Install auto-commit if requested
@@ -239,8 +321,8 @@ echo "Skill levels: junior, senior, principal"
 read -p "Level (default: senior): " LEVEL
 LEVEL=${LEVEL:-senior}
 
-# Register agent
-"$SCRIPT_DIR/headless_pm/headless_pm_client.py" register \
+# Register agent using the wrapper
+"$SCRIPT_DIR/headless_pm_client.py" register \
     --agent-id "$AGENT_ID" \
     --role "$ROLE" \
     --level "$LEVEL"
@@ -259,7 +341,7 @@ read -p "Role (e.g., backend_dev): " ROLE
 read -p "Level (default: senior): " LEVEL
 LEVEL=${LEVEL:-senior}
 
-"$SCRIPT_DIR/headless_pm/headless_pm_client.py" tasks next \
+"$SCRIPT_DIR/headless_pm_client.py" tasks next \
     --role "$ROLE" \
     --level "$LEVEL"
 EOF
@@ -274,8 +356,10 @@ echo -e "${GREEN}================================${NC}"
 echo ""
 echo -e "${BLUE}Installed components:${NC}"
 echo -e "  ✓ Python client at: $PROJECT_PATH/headless_pm/headless_pm_client.py"
+echo -e "  ✓ Isolated Python environment at: $PROJECT_PATH/headless_pm/.venv/"
 echo -e "  ✓ Team role docs at: $PROJECT_PATH/headless_pm/team_roles/"
 echo -e "  ✓ Configuration at: $PROJECT_PATH/headless_pm/.env"
+echo -e "  ✓ Client wrapper at: $PROJECT_PATH/headless_pm_client.py"
 
 if [ "$ENABLE_AUTOCOMMIT" = true ]; then
     echo -e "  ✓ Auto-commit hook at: $PROJECT_PATH/.claude/settings.json"
