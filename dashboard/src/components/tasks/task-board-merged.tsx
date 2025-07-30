@@ -17,6 +17,7 @@ const TASK_STATUSES = [
   { key: TaskStatus.Created, label: 'CREATED', color: 'bg-slate-100 text-slate-700' },
   { key: TaskStatus.UnderWork, label: 'UNDER WORK', color: 'bg-blue-100 text-blue-700' },
   { key: TaskStatus.DevDone, label: 'DEV DONE', color: 'bg-green-100 text-green-700' },
+  { key: TaskStatus.Testing, label: 'TESTING', color: 'bg-yellow-100 text-yellow-700' },
   { key: TaskStatus.QADone, label: 'QA DONE', color: 'bg-purple-100 text-purple-700' },
   { key: TaskStatus.DocumentationDone, label: 'DOCS DONE', color: 'bg-orange-100 text-orange-700' },
   { key: TaskStatus.Committed, label: 'COMMITTED', color: 'bg-emerald-100 text-emerald-700' }

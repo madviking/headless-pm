@@ -119,14 +119,30 @@ python -m src.cli.main serve --port 6969
 ```
 
 ### 4. Setup on your own project (most common use case)
-- Copy the entire directory from agents/client to your project root renaming it as headlesspm. 
-- Create .env file with your API key inside this folder
+
+#### Quick Install (Recommended)
+```bash
+# Run the interactive installer from the headless-pm directory
+./install_client.sh
+```
+
+The installer will:
+- Ask where to install the client tools
+- Optionally set up git auto-commit hooks
+- Optionally install MCP integration for Claude Code
+- Set up your API key in .env
+
+#### Manual Setup
+- Copy the entire directory from agents/client to your project root renaming it as headless_pm
+- Create .env file with your API key inside the headless_pm folder
 - Start your sessions like this (one of each role recommended):
 ```bash
-claude < headlesspm/team_roles/pm.md
+claude < headless_pm/team_roles/pm.md
 ```
-- You can directly chat with the PM agent and ask it to create epics and tasks, assign them to agents, and track progress.
-- Chatting work even without connecting with MCP. In fact, MCP server doesn't provide much value over using it directly with the client.
+
+#### Usage
+- You can directly chat with the PM agent and ask it to create epics and tasks, assign them to agents, and track progress
+- Chatting works even without connecting with MCP. In fact, MCP server doesn't provide much value over using it directly with the client
 - If there are no tasks, api will take 3 minutes to respond. This turned out to be the most reliable way to keep the Claude session alive
 
 Once Claude completes its task, it will automatically get a new task as a response. 
@@ -226,7 +242,11 @@ Headless PM includes a Model Context Protocol (MCP) server for Claude Code integ
 
 ### Installation for Claude Code
 ```bash
-# Run the installation script
+# Option 1: Use the main installer (Recommended)
+./install_client.sh
+# Then choose "Yes" when asked about MCP installation
+
+# Option 2: Use the MCP-specific installer
 ./agents/claude/install_client.sh
 
 # Or manually add to Claude Code settings:

@@ -6,12 +6,12 @@
 graph LR
     CREATED[CREATED<br/>New Task] -->|Developer Picks Up| UNDER_WORK[UNDER_WORK<br/>In Development]
     
-    UNDER_WORK -->|Dev Complete| DEV_DONE[DEV_DONE<br/>Ready for QA]
+    UNDER_WORK -->|Dev Complete| DEV_DONE[DEV_DONE<br/>Ready for Testing]
     UNDER_WORK -->|Blocked| UNDER_WORK
     
-    DEV_DONE -->|QA Starts Testing| QA_TESTING[UNDER_WORK<br/>QA Testing]
-    QA_TESTING -->|Tests Pass| QA_DONE[QA_DONE<br/>Testing Complete]
-    QA_TESTING -->|Tests Fail| CREATED
+    DEV_DONE -->|Start Testing| TESTING[TESTING<br/>Tests Running]
+    TESTING -->|Tests Pass| QA_DONE[QA_DONE<br/>Testing Complete]
+    TESTING -->|Tests Fail| CREATED
     
     QA_DONE -->|Docs Updated| DOC_DONE[DOCUMENTATION_DONE<br/>Docs Complete]
     
@@ -20,7 +20,7 @@ graph LR
     style CREATED fill:#ff9999
     style UNDER_WORK fill:#ffcc99
     style DEV_DONE fill:#99ff99
-    style QA_TESTING fill:#ffcc99
+    style TESTING fill:#ffcc99
     style QA_DONE fill:#99ff99
     style DOC_DONE fill:#99ff99
     style COMMITTED fill:#90EE90
@@ -30,14 +30,14 @@ graph LR
 
 ### Architect/PM View
 ```
-CREATED → UNDER_WORK → DEV_DONE → [Wait for QA] → COMMITTED
+CREATED → UNDER_WORK → DEV_DONE → TESTING → [Wait for QA] → COMMITTED
 ```
 - Pick up CREATED tasks like any developer
 - Also can create epics, features, and manage other agents
 
 ### Developer View (Frontend/Backend)
 ```
-CREATED → UNDER_WORK → DEV_DONE → [Wait for QA] → COMMITTED
+CREATED → UNDER_WORK → DEV_DONE → [Wait for Testing/QA] → COMMITTED
 ```
 - Pick up CREATED tasks matching role and skill level
 - Lock before starting work
@@ -46,10 +46,10 @@ CREATED → UNDER_WORK → DEV_DONE → [Wait for QA] → COMMITTED
 
 ### QA View
 ```
-DEV_DONE → UNDER_WORK → QA_DONE or CREATED (if failed)
+DEV_DONE → TESTING → QA_DONE or CREATED (if failed)
 ```
 - Pick up DEV_DONE tasks
-- Test thoroughly
+- Mark TESTING when starting tests
 - Mark QA_DONE if passes
 - Send back to CREATED if fails
 
@@ -57,9 +57,10 @@ DEV_DONE → UNDER_WORK → QA_DONE or CREATED (if failed)
 
 | Status | Who Can Set | When to Set |
 |--------|-------------|-------------|
-| CREATED | Any agent | When creating a new task or QA fails testing |
+| CREATED | Any agent | When creating a new task or testing fails |
 | UNDER_WORK | Developer/QA | When starting work on a task |
-| DEV_DONE | Developer | When code is complete and tested |
+| DEV_DONE | Developer | When code is complete and ready for testing |
+| TESTING | Developer/QA | When starting test execution |
 | QA_DONE | QA Engineer | When all tests pass |
 | DOCUMENTATION_DONE | Developer/Tech Writer | When docs are updated |
 | COMMITTED | Developer | When code is merged to main |
@@ -76,12 +77,12 @@ DEV_DONE → UNDER_WORK → QA_DONE or CREATED (if failed)
 
 ### Happy Path
 ```
-CREATED → UNDER_WORK → DEV_DONE → QA_DONE → DOCUMENTATION_DONE → COMMITTED
+CREATED → UNDER_WORK → DEV_DONE → TESTING → QA_DONE → DOCUMENTATION_DONE → COMMITTED
 ```
 
 ### QA Finds Bugs
 ```
-DEV_DONE → UNDER_WORK (QA) → CREATED → UNDER_WORK (Dev) → DEV_DONE
+DEV_DONE → TESTING → CREATED → UNDER_WORK (Dev) → DEV_DONE → TESTING
 ```
 
 ### Senior Dev Takes Junior Task (No Junior Devs Available)

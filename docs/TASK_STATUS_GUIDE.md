@@ -5,9 +5,9 @@ This guide explains each task status, who can set them, and when to use them. Un
 
 ## Status Flow Diagram
 ```
-CREATED → UNDER_WORK → DEV_DONE → QA_DONE → DOCUMENTATION_DONE → COMMITTED
-    ↓          ↓            ↓         ↓              ↓
-(rejected)  (blocked)   (failed)  (failed)     (failed)
+CREATED → UNDER_WORK → DEV_DONE → TESTING → QA_DONE → DOCUMENTATION_DONE → COMMITTED
+    ↓          ↓            ↓         ↓         ↓              ↓
+(rejected)  (blocked)   (failed)  (failed)  (failed)     (failed)
 ```
 
 ## Status Definitions
@@ -25,24 +25,31 @@ CREATED → UNDER_WORK → DEV_DONE → QA_DONE → DOCUMENTATION_DONE → COMMI
 - **Important**: Only ONE task should be UNDER_WORK per agent at a time
 
 ### 3. DEV_DONE
-- **Description**: Development is complete, ready for QA testing
+- **Description**: Development is complete, ready for testing
 - **Who sets it**: The developer who completed the work
-- **When to set**: After completing implementation, passing local tests, and committing code
-- **Next steps**: QA picks up for testing
+- **When to set**: After completing implementation and passing local tests
+- **Next steps**: Move to TESTING status for automated or manual testing
 - **Note**: Lock is automatically released when moving from UNDER_WORK to DEV_DONE
 
-### 4. QA_DONE
+### 4. TESTING
+- **Description**: Code is being tested (automated tests, integration tests, or manual testing)
+- **Who sets it**: Developer or QA engineer who initiates testing
+- **When to set**: After DEV_DONE, when starting test execution
+- **Next steps**: QA_DONE if tests pass, back to CREATED if tests fail
+- **Note**: This status indicates active testing is in progress
+
+### 5. QA_DONE
 - **Description**: QA testing passed, ready for documentation review
 - **Who sets it**: QA engineer after successful testing
 - **When to set**: After all tests pass and no critical bugs remain
 - **If tests fail**: Task goes back to CREATED for fixes
 
-### 5. DOCUMENTATION_DONE
+### 6. DOCUMENTATION_DONE
 - **Description**: Documentation has been updated/verified
 - **Who sets it**: Usually the developer or technical writer
 - **When to set**: After ensuring all docs, comments, and README updates are complete
 
-### 6. COMMITTED
+### 7. COMMITTED
 - **Description**: Final state - code is merged to main branch
 - **Who sets it**: The developer after merging
 - **When to set**: 
@@ -72,7 +79,16 @@ PUT /api/v1/tasks/123/status?agent_id=backend_dev_senior_001
 PUT /api/v1/tasks/123/status?agent_id=backend_dev_senior_001
 {
   "status": "dev_done",
-  "notes": "Implementation complete. All unit tests passing. Ready for QA."
+  "notes": "Implementation complete. All unit tests passing. Ready for testing."
+}
+```
+
+### Testing In Progress
+```bash
+PUT /api/v1/tasks/123/status?agent_id=qa_senior_001
+{
+  "status": "testing",
+  "notes": "Running integration tests and performance benchmarks."
 }
 ```
 

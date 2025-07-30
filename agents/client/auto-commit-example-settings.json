@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./headless_pm/git-auto-commit.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

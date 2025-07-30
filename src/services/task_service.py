@@ -42,9 +42,46 @@ def get_next_task_for_agent(agent: Agent, db: Session) -> Optional[TaskResponse]
     
     # Determine which statuses to look for based on role
     if agent.role == AgentRole.QA:
-        # QA tests ALL dev_done tasks regardless of target role
+        # QA can work on:
+        # 1. ALL dev_done tasks regardless of target role (for testing)
+        # 2. CREATED tasks specifically targeted for QA role (for QA development tasks)
+        
+        # For QA development tasks, we need to consider difficulty levels
+        # Check if there are available agents at lower skill levels for this role
+        cutoff_time = datetime.utcnow() - timedelta(minutes=30)
+        
+        # Get active QA agents
+        active_agents = db.exec(
+            select(Agent).where(
+                Agent.role == AgentRole.QA,
+                Agent.last_seen > cutoff_time
+            )
+        ).all()
+        
+        # Determine available skill levels
+        active_skill_levels = {ag.level for ag in active_agents}
+        
+        # Define skill hierarchy
+        skill_hierarchy = [DifficultyLevel.JUNIOR, DifficultyLevel.SENIOR, DifficultyLevel.PRINCIPAL]
+        current_skill_index = skill_hierarchy.index(agent.level)
+        
+        # Determine which difficulties this agent can work on
+        allowed_difficulties = []
+        for i, skill in enumerate(skill_hierarchy):
+            if i <= current_skill_index:  # Can always do tasks at or below their level
+                allowed_difficulties.append(skill)
+            elif skill not in active_skill_levels:  # Can do higher-level tasks if no one else available
+                continue
+        
         query = select(Task).where(
-            Task.status == TaskStatus.DEV_DONE,
+            (
+                (Task.status == TaskStatus.DEV_DONE) |  # Testing tasks (any difficulty)
+                (
+                    (Task.status == TaskStatus.CREATED) & 
+                    (Task.target_role == AgentRole.QA) & 
+                    (Task.difficulty.in_(allowed_difficulties))  # QA dev tasks with difficulty check
+                )
+            ),
             Task.locked_by_id.is_(None)
         )
     else:

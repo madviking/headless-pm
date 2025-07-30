@@ -23,6 +23,7 @@ export enum TaskStatus {
   Created = "created",
   UnderWork = "under_work",
   DevDone = "dev_done",
+  Testing = "testing",
   QADone = "qa_done",
   DocumentationDone = "documentation_done",
   Committed = "committed",

@@ -4,6 +4,7 @@ class TaskStatus(str, Enum):
     CREATED = "created"
     UNDER_WORK = "under_work"
     DEV_DONE = "dev_done"
+    TESTING = "testing"
     QA_DONE = "qa_done"
     DOCUMENTATION_DONE = "documentation_done"
     COMMITTED = "committed"

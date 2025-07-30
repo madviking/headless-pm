@@ -1,0 +1,13 @@
+{
+  "session": {
+    "agent_id": "dev_001",
+    "role": "backend_dev",
+    "start_time": 1750915368.6013372,
+    "end_time": 1750915400.620662,
+    "duration": 32.01901984214783
+  },
+  "metrics": {
+    "tasks_completed": 0,
+    "api_calls": 0
+  }
+}

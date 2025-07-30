@@ -209,6 +209,7 @@ export default function AnalyticsPage() {
                       case TaskStatus.Committed: return 'bg-green-500';
                       case TaskStatus.UnderWork: return 'bg-blue-500';
                       case TaskStatus.DevDone: return 'bg-purple-500';
+                      case TaskStatus.Testing: return 'bg-yellow-500';
                       case TaskStatus.QADone: return 'bg-orange-500';
                       case TaskStatus.Created: return 'bg-gray-500';
                       default: return 'bg-gray-500';
