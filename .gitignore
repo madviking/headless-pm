@@ -39,6 +39,9 @@ claude_venv/
 
 *.db
 
+# UV lock file
+uv.lock
+
 # Testing
 .pytest_cache/
 .coverage
@@ -68,6 +71,9 @@ debug_*.py
 fix_*.py
 *_old.py
 *_backup.py
+
+# Regressive files created during debugging sessions  
+tests/unified_test_framework.py
 
 # results fodler
 test_results/*

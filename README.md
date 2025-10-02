@@ -8,15 +8,40 @@ I use this with Claude Code, but it should work with any LLM Agent.
 
 ## ⚡ Quick Start
 
+### Option 1: UV Install (Recommended)
+
 ```bash
-# Clone the repository
+# Install from GitHub
+uv pip install git+https://github.com/madviking/headless-pm.git
+
+# Or install locally for development
+git clone https://github.com/madviking/headless-pm.git
+cd headless-pm
+uv pip install .
+
+# Start complete system (API + Dashboard)
+headless-pm
+```
+
+**That's it!** HeadlessPM starts with:
+- API server: http://localhost:6969
+- Web dashboard: http://localhost:3001 (auto-starts with event-driven monitoring)
+- API docs: http://localhost:6969/api/v1/docs
+- Health status: http://localhost:6969/health (includes dashboard status)
+
+**New in v1.0+**: Enhanced process management with automatic dashboard lifecycle and health monitoring.
+
+### Option 2: Development Setup
+
+```bash
+# Clone for development
 git clone <repository>
 cd headless-pm
 
-# Run universal setup script (handles platform-specific requirements)
+# Setup environment
 ./setup/universal_setup.sh
 
-# Start the server (handles database setup automatically)
+# Start with separate processes
 ./start.sh
 ```
 
@@ -31,13 +56,26 @@ The `universal_setup.sh` script automatically detects your architecture and crea
 
 The start script automatically checks dependencies, initializes database, and starts the server on `http://localhost:6969`.
 
-**Note on Service Ports:**
+**Environment Configuration:**
 - Services are only started if their port is defined in `.env`
-- To skip a service, remove or comment out its port variable:
+- Dashboard behavior controlled by environment variables:
+  - `DASHBOARD_PORT` - Web dashboard port (default: 3001, unset = disabled)
+  - `HEADLESS_PM_AUTO_DASHBOARD` - Auto-start dashboard (default: true)
+- Service ports:
   - `SERVICE_PORT` - API server (default: 6969)
   - `MCP_PORT` - MCP server (default: 6968)
-  - `DASHBOARD_PORT` - Web dashboard (default: 3001)
-- Example: To run without dashboard, comment out `DASHBOARD_PORT` in `.env`
+
+**Dashboard Control Examples:**
+```bash
+# Disable dashboard completely
+unset DASHBOARD_PORT  # or remove from .env
+
+# Enable dashboard but disable auto-start
+HEADLESS_PM_AUTO_DASHBOARD=false headless-pm
+
+# Use different port
+DASHBOARD_PORT=8080 headless-pm
+```
 
 ## 🚀 Features
 
@@ -193,24 +231,63 @@ The web dashboard provides a real-time view of your project:
 - `GET /api/v1/services` - List all services with health status
 - `DELETE /api/v1/services/{name}` - Unregister service
 
+### Health Monitoring
+- `GET /health` - System health with database and dashboard status
+- `GET /status` - Detailed status with metrics
+
+**Health Endpoint Response (New in v1.0+):**
+```json
+{
+  "status": "healthy",
+  "service": "headless-pm-api", 
+  "version": "1.0.0",
+  "database": "healthy",
+  "dashboard": "running",
+  "timestamp": "2024-12-14T10:30:00Z"
+}
+```
+
+**Dashboard Status Values:**
+- `running` - Dashboard process active and healthy
+- `stopped` - Dashboard not running (expected if DASHBOARD_PORT unset)
+
 ### Updates
 - `GET /api/v1/changes` - Poll changes since timestamp
 - `GET /api/v1/changelog` - Get recent activity
 
+## 📚 Documentation
+
+### User Guides
+- **[TESTING_MCP_INTEGRATION.md](docs/TESTING_MCP_INTEGRATION.md)** - Complete guide to testing MCP integration with Claude Code
+- **[API_TASK_MANAGEMENT_REFERENCE.md](docs/API_TASK_MANAGEMENT_REFERENCE.md)** - API endpoints reference
+- **[TASK_STATUS_GUIDE.md](docs/TASK_STATUS_GUIDE.md)** - Task lifecycle and status workflows
+- **[SAMPLE_AGENT_WORKFLOW.md](docs/SAMPLE_AGENT_WORKFLOW.md)** - Example agent workflows
+- **[JSON_ESCAPING_GUIDE.md](docs/JSON_ESCAPING_GUIDE.md)** - JSON escaping for API calls
+- **[STATUS_FLOW_DIAGRAM.md](docs/STATUS_FLOW_DIAGRAM.md)** - Visual task status flow
+
+### Development References
+- **[MCP API Migration Guide](docs/development/MCP_API_MIGRATION.md)** - Complete MCP SDK v1.15.0 migration documentation
+- **[Maintainer Code Review](docs/development/MAINTAINER_REVIEW.md)** - Line-by-line code quality review
+- **[Documentation Quality Control](docs/DOCUMENTATION_QUALITY_CONTROL.md)** - Quality control procedures
+
+### Testing & Demos
+- **[UV Installation & Demo Guide](docs/testing/UV_INSTALLATION_DEMO.md)** - UV installation and end-to-end testing
+- **[Dashboard Documentation](docs/dashboard/)** - Web dashboard setup and usage
+
 ## 🐍 Python Client Helper
 
-The `headless_pm_client.py` provides a complete command-line interface to the API:
+The `agents/client/headless_pm_client.py` provides a complete command-line interface to the API:
 
 ```bash
 # Basic usage
-./headless_pm_client.py --help
+./agents/client/headless_pm_client.py --help
 
 # Example commands
-./headless_pm_client.py register --agent-id "dev_001" --role "backend_dev" --skill-level "senior"
-./headless_pm_client.py epics create --name "User Authentication" --description "Implement auth system"
-./headless_pm_client.py tasks next
-./headless_pm_client.py tasks lock --task-id 123
-./headless_pm_client.py documents create --content "Completed auth module @architect please review"
+./agents/client/headless_pm_client.py register --agent-id "dev_001" --role "backend_dev" --skill-level "senior"
+./agents/client/headless_pm_client.py epics create --name "User Authentication" --description "Implement auth system"
+./agents/client/headless_pm_client.py tasks next
+./agents/client/headless_pm_client.py tasks lock --task-id 123
+./agents/client/headless_pm_client.py documents create --content "Completed auth module @architect please review"
 ```
 
 Features:
@@ -234,11 +311,47 @@ Headless PM includes a Model Context Protocol (MCP) server for Claude Code integ
 ```
 
 ### MCP Features
+- **Multi-Client Coordination**: Multiple Claude Code instances can safely connect to the same API
+- **Auto-Discovery**: Connection-first pattern tries existing APIs before starting new ones  
+- **Reference Counting**: API remains running as long as any MCP client is connected
+- **Process Safety**: Only the client that started an API can terminate it (preserves existing APIs)
 - Natural language task management
 - Automatic agent registration (connection type: "mcp")
 - Token usage tracking
 - Multiple transport protocols (HTTP, SSE, WebSocket, STDIO)
-- Seamless integration with Claude Code
+- Cross-platform file coordination with atomic operations
+
+### Multi-Client Behavior
+
+**Multiple Clients Scenario**:
+```bash
+# Terminal 1: First Claude Code instance
+claude  # Starts API if none exists
+
+# Terminal 2: Second Claude Code instance  
+claude  # Connects to existing API, no new process started
+
+# When Terminal 1 exits: API continues for Terminal 2
+# When Terminal 2 exits: API shuts down (last client)
+```
+
+**Pre-existing API Scenario**:
+```bash
+# Terminal 1: Start API manually
+headless-pm &
+
+# Terminal 2: Claude Code connects  
+claude  # Connects to existing API
+
+# When Claude exits: API remains running (not started by MCP)
+```
+
+### Environment Variables
+- `HEADLESS_PM_NO_AUTOSTART`: Skip auto-start, connection-only mode
+- `HEADLESS_PM_COMMAND`: Override command discovery  
+- `HEADLESS_PM_DIR`: Set working directory for API processes
+- `HEADLESS_PM_URL`: API base URL (overrides default, e.g., http://localhost:6969)
+- `SERVICE_PORT`: API port (default: 6969)
 
 ### Using MCP Commands
 Once installed in Claude Code, you can use natural language:
@@ -342,7 +455,9 @@ headless-pm/
 ├── examples/             # Sample workflows and demos
 ├── setup/               # Installation and setup scripts
 ├── docs/               # Project documentation
-└── headless_pm_client.py  # Python CLI client
+└── agents/
+    └── client/
+        └── headless_pm_client.py  # Python CLI client
 ```
 
 ## 🤖 Agent Roles

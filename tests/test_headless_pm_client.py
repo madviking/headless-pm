@@ -10,6 +10,9 @@ import sys
 import time
 import unittest
 import uuid
+import asyncio
+import hashlib
+import subprocess
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Set
@@ -20,6 +23,8 @@ from pathlib import Path
 # Add parent directory to path to import the client
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from headless_pm_client import HeadlessPMClient, load_env_file
+from tests.test_helpers import ServerManager
+from tests.process_tree_leak_detective import comprehensive_leak_detection
 
 
 def TestableHeadlessPMClient(base_url=None, api_key=None):
@@ -43,12 +48,62 @@ class TestHeadlessPMClient(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        """Set up test environment once for all tests"""
+        """Set up test environment once for all tests with dedicated API server"""
         # Load environment variables
         load_env_file()
         
-        # Initialize client
-        cls.client = TestableHeadlessPMClient()
+        # Use clean deterministic allocation for reproducible class-level isolation
+        class_name = cls.__name__
+        class_instance_id = f"{class_name}::class_setup"
+        
+        from src.main import get_port
+        unique_port = get_port(8000, instance_id=class_instance_id)
+        print(f"\n[{class_name}] Using unique port {unique_port} for test isolation")
+        
+        # Create server manager and start API server
+        cls.server_manager = ServerManager(port=unique_port)
+        
+        # Pre-flight check - ensure port is free
+        lsof_command = f"lsof -i :{unique_port}"
+        result = subprocess.run(lsof_command, shell=True, check=False, capture_output=True)
+        if result.returncode == 0:
+            raise Exception(
+                f"PRE-FLIGHT CHECK FAILED: Port {unique_port} is already in use before test start.\n"
+                f"Leaking process info:\n{result.stdout.decode()}"
+            )
+        
+        # Start API server using ServerManager pattern from test_mcp_autodiscovery
+        print(f"[{class_name}] Starting API server on port {unique_port}...")
+        cls.api_process = subprocess.Popen([
+            sys.executable, "-m", "src.main"
+        ], 
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        cwd=Path(__file__).parent.parent,  # Project root
+        env={**os.environ, "SERVICE_PORT": str(unique_port)}
+        )
+        
+        # Wait for API to start using async helper
+        async def wait_for_api_start():
+            for attempt in range(30):  # 15 seconds max
+                await asyncio.sleep(0.5)
+                if await cls.server_manager.is_api_running():
+                    return True
+            return False
+        
+        # Run async wait in sync context
+        api_started = asyncio.run(wait_for_api_start())
+        if not api_started:
+            if cls.api_process.poll() is None:
+                cls.api_process.terminate()
+                cls.api_process.wait()
+            raise Exception(f"API server failed to start on port {unique_port}")
+        
+        print(f"✓ API server started on port {unique_port}")
+        
+        # Initialize client with our dedicated server
+        base_url = f"http://localhost:{unique_port}"
+        cls.client = TestableHeadlessPMClient(base_url=base_url)
         
         # Generate unique test run ID to avoid conflicts
         cls.test_run_id = str(uuid.uuid4())[:8]
@@ -77,6 +132,10 @@ class TestHeadlessPMClient(unittest.TestCase):
             print(f"✓ Registered PM agent: {cls.pm_agent_id}")
         except Exception as e:
             print(f"Failed to register PM agent: {e}")
+            # Clean up API server if agent registration fails
+            if cls.api_process.poll() is None:
+                cls.api_process.terminate()
+                cls.api_process.wait()
             raise
     
     @classmethod
@@ -126,16 +185,67 @@ class TestHeadlessPMClient(unittest.TestCase):
                 except Exception as e:
                     print(f"Cleanup error: {e}")
         
-        # Finally, delete PM agent
+        # Create separate cleanup admin agent to delete PM agent properly
         try:
-            cls.client.delete_agent(cls.pm_agent_id, cls.pm_agent_id)
+            cleanup_admin_id = f"cleanup_admin_{cls.test_run_id}"
+            base_url = f"http://localhost:{cls.server_manager.port}"
+            cleanup_client = TestableHeadlessPMClient(base_url=base_url)
+            
+            # Register cleanup admin
+            cleanup_client.register_agent(
+                agent_id=cleanup_admin_id,
+                role="pm", 
+                level="principal",
+                connection_type="client"
+            )
+            
+            # Use admin to delete PM agent
+            cleanup_client.delete_agent(cls.pm_agent_id, cleanup_admin_id)
             print(f"✓ Deleted PM agent: {cls.pm_agent_id}")
+            
+            # Create second admin to delete first admin (solve self-deletion issue)
+            cleanup_admin2_id = f"cleanup_admin2_{cls.test_run_id}"
+            cleanup_client.register_agent(
+                agent_id=cleanup_admin2_id,
+                role="pm",
+                level="principal", 
+                connection_type="client"
+            )
+            
+            # Second admin deletes first admin
+            cleanup_client.delete_agent(cleanup_admin_id, cleanup_admin2_id)
+            print(f"✓ Deleted cleanup admin: {cleanup_admin_id}")
+            
+            # Second admin remains (acceptable for test isolation)
+            print(f"Note: cleanup_admin2 {cleanup_admin2_id} remains (no self-deletion)")
+            
         except Exception as e:
-            # It's expected that PM agent can't delete itself
-            if "Cannot delete your own agent record" in str(e):
-                print(f"✓ PM agent {cls.pm_agent_id} remains (cannot self-delete)")
-            else:
-                print(f"Failed to delete PM agent: {e}")
+            print(f"Cleanup admin approach failed: {e}")
+            print(f"PM agent {cls.pm_agent_id} remains (manual cleanup may be needed)")
+        
+        # Clean up API server using ServerManager pattern
+        print(f"\nStopping API server on port {cls.server_manager.port}...")
+        if hasattr(cls, 'api_process') and cls.api_process.poll() is None:
+            # Proper graceful shutdown for API server
+            cls.api_process.terminate()
+            try:
+                cls.api_process.wait(timeout=10)  # Consistent with MCP coordination cleanup
+            except subprocess.TimeoutExpired:
+                cls.api_process.kill()
+                cls.api_process.wait()
+        
+        # Use async cleanup from ServerManager for final cleanup
+        async def final_cleanup():
+            # Set existing_api_pid to None so cleanup knows we own the API
+            cls.server_manager.existing_api_pid = None
+            await cls.server_manager.cleanup()
+        
+        # Run async cleanup in sync context
+        asyncio.run(final_cleanup())
+        print(f"✓ API server cleanup completed on port {cls.server_manager.port}")
+        
+        # LEAK DETECTIVE: Detect and attribute any remaining process leaks
+        comprehensive_leak_detection("TestHeadlessPMClient", {cls.server_manager.port})
     
     @classmethod
     def _cleanup_resource(cls, resource_type: str, resource_id: Any):

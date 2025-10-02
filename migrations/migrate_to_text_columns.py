@@ -36,7 +36,7 @@ def get_database_url():
             return url
     except FileNotFoundError:
         pass
-    return "sqlite:///./headless_pm.db"
+    return "sqlite:///./headless-pm.db"
 
 def migrate_to_text_columns():
     """Convert VARCHAR(255) columns to TEXT type"""

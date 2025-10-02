@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get database URL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./headless_pm.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./headless-pm.db")
 
 def migrate():
     engine = create_engine(DATABASE_URL)

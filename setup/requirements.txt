@@ -18,4 +18,12 @@ pytest>=7.0.0
 pytest-cov>=4.0.0
 
 # MCP (Model Context Protocol) for Claude integration
-mcp>=1.0.0
+# Protocol version: 2025-06-18 (date-based)
+mcp>=1.15.0
+
+# Process management and file locking
+fasteners>=0.20
+psutil>=5.9.0
+
+# HTTP client for Python client script
+requests>=2.32.0

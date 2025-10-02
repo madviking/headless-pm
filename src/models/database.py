@@ -19,7 +19,7 @@ def get_database_url() -> str:
         return f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     else:
         # Default to SQLite
-        return os.getenv("DATABASE_URL", "sqlite:///./headless_pm.db")
+        return os.getenv("DATABASE_URL", "sqlite:///./headless-pm.db")
 
 DATABASE_URL = get_database_url()
 
