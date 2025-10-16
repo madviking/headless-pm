@@ -42,18 +42,27 @@ source $VENV_NAME/bin/activate
 # Upgrade pip
 pip install --upgrade pip
 
+# Clear pip cache on macOS ARM64 to prevent cached x86_64 pydantic-core wheels
+# Without this: ImportError: mach-o file, but is an incompatible architecture (have 'x86_64', need 'arm64')
+# Root cause: pip caches x86_64 wheels from Rosetta Python, installs wrong architecture on native ARM64 Python
+# Solution: Clear cache + --no-cache-dir forces fresh ARM64 wheel download
+# See: https://github.com/pydantic/pydantic/discussions/3736
+if [[ "$ARCH" == "arm64" && "$(uname -s)" == "Darwin" ]]; then
+    pip cache purge >/dev/null 2>&1 || true
+fi
+
 # Install packages based on architecture
 if [[ "$ARCH" == "arm64" ]]; then
     # Standard installation for ARM64
-    echo "Installing packages normally for ARM64..."
-    pip install -r setup/requirements.txt
+    echo "Installing packages for ARM64..."
+    pip install --no-cache-dir -r setup/requirements.txt
 else
-    # Install for x86_64 (Claude Code compatibility)
+    # Install for x86_64 (specific pydantic versions for compatibility)
     echo "Installing packages for x86_64..."
-    
-    # First, install pydantic with specific versions that work in Claude Code
+
+    # First, install pydantic with specific versions for x86_64 environments
     pip install pydantic==2.11.7 pydantic-core==2.33.2
-    
+
     # Then install the rest of the requirements
     pip install -r setup/requirements.txt
 fi

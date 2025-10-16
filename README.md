@@ -12,12 +12,14 @@ I use this with Claude Code, but it should work with any LLM Agent.
 
 ```bash
 # Install from GitHub
-uv pip install git+https://github.com/madviking/headless-pm.git
+uv tool install git+https://github.com/madviking/headless-pm.git
 
-# Or install locally for development
+# Or clone and install locally
 git clone https://github.com/madviking/headless-pm.git
 cd headless-pm
-uv pip install .
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv pip install .            # or uv pip install ".[dev]" to run tests
 
 # Start complete system (API + Dashboard)
 headless-pm
@@ -43,6 +45,12 @@ cd headless-pm
 
 # Start with separate processes
 ./start.sh
+```
+
+### Running Tests
+
+```bash
+python -m pytest tests/  # After installing with .[dev]
 ```
 
 ### Platform-Specific Setup Notes
