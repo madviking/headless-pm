@@ -63,7 +63,7 @@ MCP_PORT=6968
 DASHBOARD_PORT=3001
 
 # Database
-DATABASE_URL=sqlite:///headless_pm.db
+DATABASE_URL=sqlite:///headless-pm.db
 # Or for MySQL:
 # DATABASE_URL=mysql://user:password@localhost/headless_pm
 ```

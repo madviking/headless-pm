@@ -2,7 +2,8 @@
 # Set DB_CONNECTION to 'mysql' for MySQL or 'sqlite' for SQLite
 DB_CONNECTION="sqlite" # or "mysql"
 # SQLite Configuration (when DB_CONNECTION="sqlite")
-DATABASE_URL="sqlite:///headless-pm.db"           # Usage tracking database
+# SQLite database file path (ignored when using MySQL)
+DATABASE_URL="sqlite:///headless-pm.db"
 
 # MySQL Configuration (when DB_CONNECTION="mysql")
 # All components will use the same MySQL instance with different tables
@@ -28,3 +29,8 @@ SERVICER_HOST=localhost
 # this is used by the client process
 API_KEY_HEADLESS_PM="XXXXXX"
 DASHBOARD_PORT=3001
+
+# Auto-start Dashboard
+# Set to "false" to disable automatic dashboard startup  
+# Set to "true" to auto-start dashboard with API (default)
+HEADLESS_PM_AUTO_DASHBOARD=false

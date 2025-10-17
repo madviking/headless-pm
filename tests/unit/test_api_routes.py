@@ -22,18 +22,25 @@ def engine():
     # Create a temporary file for the database
     db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
     db_file.close()
-    
+
     engine = create_engine(
-        f"sqlite:///{db_file.name}", 
+        f"sqlite:///{db_file.name}",
         connect_args={"check_same_thread": False}
     )
     SQLModel.metadata.create_all(engine)
-    
-    yield engine
-    
-    # Cleanup
-    engine.dispose()
-    os.unlink(db_file.name)
+
+    try:
+        yield engine
+    finally:
+        # Cleanup - guaranteed to run even if test fails/times out
+        try:
+            engine.dispose()
+        except Exception:
+            pass
+        try:
+            os.unlink(db_file.name)
+        except Exception:
+            pass
 
 
 @pytest.fixture
@@ -74,7 +81,9 @@ def client(session, engine):
 @pytest.fixture
 def api_headers():
     """API headers with authentication"""
-    return {"X-API-Key": "fi12jsm1212"}
+    # Use same API key that's configured in the test environment
+    api_key = os.getenv("API_KEY", "XXXXXX")
+    return {"X-API-Key": api_key}
 
 
 class TestAgentRoutes:

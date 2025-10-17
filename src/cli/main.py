@@ -339,5 +339,10 @@ def dashboard():
     dashboard = HeadlessPMDashboard()
     dashboard.run()
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for headless-pm-cli command"""
     app()
+
+if __name__ == "__main__":
+    main()
+

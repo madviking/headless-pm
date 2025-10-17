@@ -21,18 +21,25 @@ def engine():
     # Create a temporary file for the database
     db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
     db_file.close()
-    
+
     engine = create_engine(
-        f"sqlite:///{db_file.name}", 
+        f"sqlite:///{db_file.name}",
         connect_args={"check_same_thread": False}
     )
     SQLModel.metadata.create_all(engine)
-    
-    yield engine
-    
-    # Cleanup
-    engine.dispose()
-    os.unlink(db_file.name)
+
+    try:
+        yield engine
+    finally:
+        # Cleanup - guaranteed to run even if test fails/times out
+        try:
+            engine.dispose()
+        except Exception:
+            pass
+        try:
+            os.unlink(db_file.name)
+        except Exception:
+            pass
 
 
 @pytest.fixture

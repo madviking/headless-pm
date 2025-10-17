@@ -1,0 +1,166 @@
+[project]
+name = "headless-pm"
+version = "1.0.0"
+description = "LLM agent task coordination API with document-based communication"
+authors = [
+    {name = "HeadlessPM Team", email = "team@headless-pm.dev"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = ["llm", "agent", "task-management", "api", "fastapi", "mcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Framework :: FastAPI",
+]
+
+# Core runtime dependencies - exact versions for reproducibility
+dependencies = [
+    "pydantic>=2.10.6,<3.0.0",
+    "pydantic-core>=2.33.2,<3.0.0",
+    "python-dotenv>=1.0.1",
+    "sqlmodel>=0.0.8,<0.1.0",
+    "pymysql>=1.0.0",
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "httpx>=0.24.0",
+    "typer>=0.15.2",
+    "tabulate>=0.9.0",
+    "rich>=13.0.0",
+    "mcp>=1.15.0",
+    "fasteners>=0.20",
+    "psutil>=5.9.0",
+    "requests>=2.32.0",
+]
+
+# Optional feature dependencies for modular installation
+[project.optional-dependencies]
+# Development tools
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+# All optional features combined
+all = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0", 
+    "pytest-asyncio>=0.23.0",
+]
+
+# Command-line entry points for seamless execution
+[project.scripts]
+headless-pm = "src.main:main"
+headless-pm-cli = "src.cli.main:main"
+headless-pm-mcp = "src.mcp.server:main"
+
+# Project URLs for PyPI and documentation
+[project.urls]
+Homepage = "https://github.com/madviking/headless-pm"
+Repository = "https://github.com/madviking/headless-pm.git"
+Documentation = "https://github.com/madviking/headless-pm/blob/main/README.md"
+"Bug Reports" = "https://github.com/madviking/headless-pm/issues"
+"Source Code" = "https://github.com/madviking/headless-pm"
+
+# Modern build system for PyPI compatibility
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"
+
+# Hatchling configuration for proper package building
+[tool.hatch.version]
+path = "src/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+include = [
+    "dashboard/**/*",
+    "env-example",
+]
+exclude = [
+    "dashboard/node_modules/**/*",
+    "dashboard/.next/**/*", 
+    "dashboard/test-results/**/*",
+    "dashboard/tests/**/*",
+    "dashboard/playwright-report/**/*",
+    "dashboard/screenshots/**/*",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "dashboard/",
+    "setup/",
+    "scripts/",
+    "README.md",
+    "LICENSE", 
+    "env-example",
+]
+exclude = [
+    "dashboard/node_modules/**/*",
+    "dashboard/.next/**/*",
+    "dashboard/test-results/**/*",
+    "dashboard/playwright-report/**/*",
+]
+
+# UV configuration for modern dependency management
+[tool.uv]
+managed = true
+package = true
+
+# Development dependencies (UV modern format)
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "integration: marks tests as integration tests (may require external services)",
+    "slow: marks tests as slow running",
+    "unit: marks tests as unit tests"
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning:src.mcp.token_tracker",
+    "ignore::DeprecationWarning:src.mcp.server"
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "tests/*",
+    "setup/*", 
+    "migrations/*",
+    "dashboard/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError"
+]
+
+# UV workspace configuration for multi-component architecture
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+# UV sources configuration (none needed currently)

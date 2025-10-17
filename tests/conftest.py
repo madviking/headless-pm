@@ -10,6 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "agents" / "client"))
 
+# Session cleanup removed - caused additional test failures
+
 # Load environment variables before any tests run
 def pytest_configure(config):
     """Load environment variables from .env file"""

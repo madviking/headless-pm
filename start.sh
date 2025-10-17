@@ -308,11 +308,15 @@ echo "📊 CLI Dashboard: python -m src.cli.main dashboard"
 echo "🛑 Stop servers: Ctrl+C"
 echo -e "${NC}"
 
-# Start MCP server in background (only if MCP_PORT is defined)
-if [ ! -z "$MCP_PORT" ]; then
+# Start MCP server in background (only if MCP_PORT is defined and not launched by MCP client)
+if [ ! -z "$MCP_PORT" ] && [ -z "$HEADLESS_PM_FROM_MCP" ]; then
     start_mcp_server
 else
-    log_info "MCP_PORT not defined in .env, skipping MCP server startup"
+    if [ ! -z "$HEADLESS_PM_FROM_MCP" ]; then
+        log_info "Launched by MCP client - skipping MCP server startup to prevent fork bomb"
+    else
+        log_info "MCP_PORT not defined in .env, skipping MCP server startup"
+    fi
 fi
 
 # Start dashboard in background (only if DASHBOARD_PORT is defined)

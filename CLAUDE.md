@@ -77,6 +77,9 @@ The `start.sh` script automatically:
 ## Testing
 
 ### Running Tests
+
+**IMPORTANT**: Full test suite requires **at least 3 minutes** to complete (155 tests in ~2.5 min)
+
 ```bash
 # IMPORTANT: Use the appropriate virtual environment for your platform
 # For Claude Code (x86_64):
@@ -85,8 +88,11 @@ source claude_venv/bin/activate
 # For native Mac (ARM64):
 source venv/bin/activate
 
-# Run all tests with coverage
-python -m pytest --cov=src --cov-report=term-missing
+# Run all tests with coverage (requires 3+ minutes)
+timeout 300s python -m pytest --cov=src --cov-report=term-missing
+
+# Quick unit tests only (~30 seconds)
+python -m pytest tests/unit/ -v
 
 # Run specific test files
 python -m pytest tests/test_api.py -v
@@ -97,6 +103,9 @@ python -m pytest -q
 
 # Run specific test patterns
 python -m pytest -k "test_name_pattern"
+
+# View test durations to identify slow tests
+python -m pytest -v --durations=20
 ```
 
 ### Test Coverage Status
@@ -276,9 +285,19 @@ Agents can register with two connection types:
 
 ### MCP Connection  
 - Automatically set when using MCP server
-- Used by Claude Code integration
+- Used by Claude Code integration with **multi-client coordination**
+- **Auto-Discovery**: Connects to existing APIs before starting new ones
+- **Reference Counting**: Multiple Claude Code instances can safely share one API
+- **Process Safety**: Only API starters perform cleanup (preserves existing APIs)
 - Provides natural language interface
 - Token usage tracking included
+- Cross-platform coordination with atomic file operations
+
+**Multi-Client Behavior**:
+- First MCP client starts API if none exists
+- Additional clients connect to existing API (no duplicate processes)
+- API remains running until last MCP client disconnects
+- Pre-existing APIs are never terminated by MCP clients
 
 The connection type helps distinguish between different agent interfaces and enables appropriate features for each type.
 
