@@ -25,6 +25,8 @@ uv pip install .            # or uv pip install ".[dev]" to run tests
 headless-pm
 ```
 
+**Note about Apple M-series processors**: In the unlikely case that uv install fails due to x86/arm compatibility issue related to Pydantic, run ```uv cache clean``` first. 
+
 **That's it!** HeadlessPM starts with:
 - API server: http://localhost:6969
 - Web dashboard: http://localhost:3001 (auto-starts with event-driven monitoring)
@@ -43,8 +45,9 @@ cd headless-pm
 # Setup environment
 ./setup/universal_setup.sh
 
-# Start with separate processes
-./start.sh
+# Start supervisor (API/MCP/Dashboard)
+./start.sh            # normal start
+./start.sh --kill     # prompt to free busy ports (e.g., 3001)
 ```
 
 ### Running Tests
@@ -72,6 +75,12 @@ The start script automatically checks dependencies, initializes database, and st
 - Service ports:
   - `SERVICE_PORT` - API server (default: 6969)
   - `MCP_PORT` - MCP server (default: 6968)
+
+**Port Conflicts:**
+- Use `./start.sh --kill` to interactively free ports (6969 API, 6968 MCP, 3001 Dashboard).
+- The script lists the processes on the port and asks for confirmation before terminating.
+- If you decline, that service is skipped to avoid crashes (e.g., EADDRINUSE).
+- Alternatively, change ports in `.env` (`SERVICE_PORT`, `MCP_PORT`, `DASHBOARD_PORT`).
 
 **Dashboard Control Examples:**
 ```bash
@@ -191,6 +200,8 @@ The web dashboard provides a real-time view of your project:
 ```bash
 # Dashboard runs automatically with start.sh
 # Or access directly at http://localhost:3001
+# If 3001 is busy, start.sh will skip it unless you run with --kill,
+# or set a different port via DASHBOARD_PORT in .env
 ```
 
 ![Dashboard Overview](docs/images/dashboard-overview.png)
@@ -262,6 +273,15 @@ The web dashboard provides a real-time view of your project:
 ### Updates
 - `GET /api/v1/changes` - Poll changes since timestamp
 - `GET /api/v1/changelog` - Get recent activity
+
+## ❗ Troubleshooting
+
+- Address already in use (EADDRINUSE), e.g. port 3001 or 6969
+  - Run `./start.sh --kill` and confirm when prompted, or
+  - Change the port in `.env` (`DASHBOARD_PORT`, `SERVICE_PORT`, `MCP_PORT`).
+- Dashboard doesn’t start
+  - Ensure Node.js v18+ is installed (`node -v`), and install deps in `dashboard/` with `npm install`.
+  - If a port is busy and you declined to free it, the script will skip the dashboard.
 
 ## 📚 Documentation
 

@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Manual Setup (if needed)
 ```bash
-# For Claude Code (x86_64), use claude_venv:
+# For LLM agents (x86_64), use claude_venv:
 python -m venv claude_venv
 source claude_venv/bin/activate
 pip install pydantic==2.11.7 pydantic-core==2.33.2

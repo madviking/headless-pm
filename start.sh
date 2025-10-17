@@ -3,7 +3,7 @@
 # Headless PM Start Script
 # Checks environment, database, and starts the API server
 
-set -e  # Exit on any error
+set -e  # Exit on any error during setup/check phase
 
 # Colors for output
 RED='\033[0;31m'
@@ -27,6 +27,84 @@ log_warning() {
 
 log_error() {
     echo -e "${RED}❌ $1${NC}"
+}
+
+# Argument parsing
+KILL_FLAG=false
+for arg in "$@"; do
+    case "$arg" in
+        --kill|-k)
+            KILL_FLAG=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: ./start.sh [--kill]"
+            echo "  --kill, -k    Prompt to kill processes using required ports"
+            exit 0
+            ;;
+    esac
+done
+
+# Port/process helpers
+port_in_use() {
+    local port="$1"
+    lsof -i :"$port" >/dev/null 2>&1
+}
+
+list_port_processes() {
+    local port="$1"
+    lsof -nP -i :"$port" | sed '1d' || true
+}
+
+kill_processes_on_port() {
+    local port="$1"
+    local label="$2"
+
+    if ! port_in_use "$port"; then
+        return 0
+    fi
+
+    log_warning "Port $port is in use for $label"
+    local procs
+    procs=$(list_port_processes "$port")
+    if [ -n "$procs" ]; then
+        echo "$procs"
+    fi
+
+    # Ask for confirmation
+    read -r -p "Kill processes on port $port for $label? [y/N] " resp
+    case "$resp" in
+        y|Y|yes|YES)
+            ;;
+        *)
+            log_warning "Skipping $label startup due to port $port in use"
+            return 1
+            ;;
+    esac
+
+    # Try graceful then forceful kill on all PIDs using the port
+    local pids
+    pids=$(lsof -t -i :"$port" | sort -u | tr '\n' ' ')
+    if [ -z "$pids" ]; then
+        return 0
+    fi
+
+    log_info "Sending SIGTERM to: $pids"
+    kill $pids 2>/dev/null || true
+    sleep 1
+    if port_in_use "$port"; then
+        log_warning "Port $port still in use; sending SIGKILL"
+        kill -9 $pids 2>/dev/null || true
+        sleep 1
+    fi
+
+    if port_in_use "$port"; then
+        log_error "Failed to free port $port"
+        return 1
+    else
+        log_success "Port $port freed for $label"
+        return 0
+    fi
 }
 
 # Banner
@@ -191,33 +269,57 @@ fi
 PORT=${SERVICE_PORT:-6969}
 
 # Only check port if service will be started
+API_START_ENABLED=true
 if [ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]; then
     log_info "Checking if port $PORT is available..."
     if lsof -i :$PORT >/dev/null 2>&1; then
-        log_warning "Port $PORT is already in use"
-        log_info "You may want to stop the existing service or use a different port"
+        if [ "$KILL_FLAG" = true ]; then
+            if ! kill_processes_on_port "$PORT" "API"; then
+                API_START_ENABLED=false
+            fi
+        else
+            log_warning "Port $PORT is already in use"
+            log_info "Start with --kill to free it, or change SERVICE_PORT"
+            API_START_ENABLED=false
+        fi
     else
         log_success "Port $PORT is available"
     fi
 fi
 
 # Only check MCP port if defined
+MCP_START_ENABLED=true
 if [ ! -z "$MCP_PORT" ]; then
     log_info "Checking if MCP port $MCP_PORT is available..."
     if lsof -i :$MCP_PORT >/dev/null 2>&1; then
-        log_warning "MCP port $MCP_PORT is already in use"
-        log_info "You may want to stop the existing service or use a different port"
+        if [ "$KILL_FLAG" = true ]; then
+            if ! kill_processes_on_port "$MCP_PORT" "MCP"; then
+                MCP_START_ENABLED=false
+            fi
+        else
+            log_warning "MCP port $MCP_PORT is already in use"
+            log_info "Start with --kill to free it, or change MCP_PORT"
+            MCP_START_ENABLED=false
+        fi
     else
         log_success "MCP port $MCP_PORT is available"
     fi
 fi
 
 # Only check dashboard port if defined
+DASHBOARD_START_ENABLED=true
 if [ ! -z "$DASHBOARD_PORT" ]; then
     log_info "Checking if dashboard port $DASHBOARD_PORT is available..."
     if lsof -i :$DASHBOARD_PORT >/dev/null 2>&1; then
-        log_warning "Dashboard port $DASHBOARD_PORT is already in use"
-        log_info "You may want to stop the existing service or use a different port"
+        if [ "$KILL_FLAG" = true ]; then
+            if ! kill_processes_on_port "$DASHBOARD_PORT" "Dashboard"; then
+                DASHBOARD_START_ENABLED=false
+            fi
+        else
+            log_warning "Dashboard port $DASHBOARD_PORT is already in use"
+            log_info "Start with --kill to free it, or change DASHBOARD_PORT"
+            DASHBOARD_START_ENABLED=false
+        fi
     else
         log_success "Dashboard port $DASHBOARD_PORT is available"
     fi
@@ -226,7 +328,8 @@ fi
 # Function to start MCP server in background
 start_mcp_server() {
     log_info "Starting MCP SSE server on port $MCP_PORT..."
-    uvicorn src.mcp.simple_sse_server:app --port $MCP_PORT --host 0.0.0.0 2>&1 | sed 's/^/[MCP] /' &
+    # Start without piping so we capture the real server PID
+    uvicorn src.mcp.simple_sse_server:app --port $MCP_PORT --host 0.0.0.0 &
     MCP_PID=$!
     log_success "MCP SSE server started on port $MCP_PORT (PID: $MCP_PID)"
 }
@@ -260,7 +363,8 @@ start_dashboard() {
         fi
         
         # Start the dashboard with the configured port
-        npx next dev --port $DASHBOARD_PORT --turbopack 2>&1 | sed 's/^/[DASHBOARD] /' &
+        # Avoid piping so we capture the actual Next.js PID
+        npx next dev --port $DASHBOARD_PORT --turbopack &
         DASHBOARD_PID=$!
         cd ..
         log_success "Dashboard started on port $DASHBOARD_PORT (PID: $DASHBOARD_PID)"
@@ -289,19 +393,20 @@ cleanup() {
 }
 
 # Set up trap for cleanup
-trap cleanup INT TERM
+# Clean up both on signals and normal exit
+trap cleanup INT TERM EXIT
 
 # Start the servers
 log_info "All checks passed! Starting Headless PM servers..."
 echo -e "${GREEN}"
 echo "🌟 Starting services..."
-if [ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]; then
+if ([ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]) && [ "$API_START_ENABLED" = true ]; then
     echo "📚 API Documentation: http://localhost:$PORT/api/v1/docs"
 fi
-if [ ! -z "$MCP_PORT" ]; then
+if [ ! -z "$MCP_PORT" ] && [ "$MCP_START_ENABLED" = true ]; then
     echo "🔌 MCP HTTP Server: http://localhost:$MCP_PORT"
 fi
-if [ ! -z "$DASHBOARD_PORT" ]; then
+if [ ! -z "$DASHBOARD_PORT" ] && [ "$DASHBOARD_START_ENABLED" = true ]; then
     echo "🖥️  Web Dashboard: http://localhost:$DASHBOARD_PORT"
 fi
 echo "📊 CLI Dashboard: python -m src.cli.main dashboard"
@@ -309,31 +414,58 @@ echo "🛑 Stop servers: Ctrl+C"
 echo -e "${NC}"
 
 # Start MCP server in background (only if MCP_PORT is defined and not launched by MCP client)
-if [ ! -z "$MCP_PORT" ] && [ -z "$HEADLESS_PM_FROM_MCP" ]; then
+if [ ! -z "$MCP_PORT" ] && [ -z "$HEADLESS_PM_FROM_MCP" ] && [ "$MCP_START_ENABLED" = true ]; then
     start_mcp_server
 else
     if [ ! -z "$HEADLESS_PM_FROM_MCP" ]; then
         log_info "Launched by MCP client - skipping MCP server startup to prevent fork bomb"
     else
-        log_info "MCP_PORT not defined in .env, skipping MCP server startup"
+        if [ -z "$MCP_PORT" ]; then
+            log_info "MCP_PORT not defined in .env, skipping MCP server startup"
+        else
+            log_info "Skipping MCP server startup"
+        fi
     fi
 fi
 
 # Start dashboard in background (only if DASHBOARD_PORT is defined)
-if [ ! -z "$DASHBOARD_PORT" ]; then
+if [ ! -z "$DASHBOARD_PORT" ] && [ "$DASHBOARD_START_ENABLED" = true ]; then
     start_dashboard
 else
-    log_info "DASHBOARD_PORT not defined in .env, skipping dashboard startup"
+    if [ -z "$DASHBOARD_PORT" ]; then
+        log_info "DASHBOARD_PORT not defined in .env, skipping dashboard startup"
+    else
+        log_info "Skipping dashboard startup"
+    fi
 fi
 
 # Start API server (only if SERVICE_PORT is defined or use default)
-if [ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]; then
+if ([ ! -z "$SERVICE_PORT" ] || [ "$PORT" = "6969" ]) && [ "$API_START_ENABLED" = true ]; then
     log_info "Starting API server on port $PORT..."
     uvicorn src.main:app --reload --port $PORT --host 0.0.0.0 &
     API_PID=$!
 else
-    log_info "SERVICE_PORT not defined in .env, skipping API server startup"
+    if [ -z "$SERVICE_PORT" ] && [ ! "$PORT" = "6969" ]; then
+        log_info "SERVICE_PORT not defined in .env, skipping API server startup"
+    else
+        log_info "Skipping API server startup"
+    fi
 fi
 
-# Wait for all processes
-wait $API_PID $MCP_PID $DASHBOARD_PID
+# Wait for all started processes. Disable -e so an individual non-zero exit
+# status does not abort the supervisor and SIGHUP other children.
+set +e
+pids=()
+[ -n "$API_PID" ] && pids+=("$API_PID")
+[ -n "$MCP_PID" ] && pids+=("$MCP_PID")
+[ -n "$DASHBOARD_PID" ] && pids+=("$DASHBOARD_PID")
+
+if [ ${#pids[@]} -gt 0 ]; then
+    wait "${pids[@]}"
+else
+    # Fallback: wait for any background jobs (shouldn't normally happen)
+    wait
+fi
+
+# Re-enable -e for any subsequent commands (none expected below)
+set -e
