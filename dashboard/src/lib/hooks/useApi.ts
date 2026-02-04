@@ -1,10 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
 import { HeadlessPMClient } from '@/lib/api/client';
-import { 
-  AgentRole, SkillLevel, TaskStatus, DocumentType,
-  Epic, Feature, Task, Agent, Document, Service, Mention
-} from '@/lib/types';
+import type { TaskStatus, DocumentType } from '@/lib/types';
 
 // Create a singleton instance of the API client to prevent re-initialization
 let apiClientInstance: HeadlessPMClient | null = null;
@@ -172,7 +168,7 @@ export const useApi = <T>(
   queryKey: string | readonly unknown[],
   queryFn: (client: HeadlessPMClient) => Promise<T>,
   options?: {
-    refetchInterval?: number;
+    refetchInterval?: number | false;
     enabled?: boolean;
     staleTime?: number;
   }

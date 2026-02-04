@@ -2,19 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/hooks/useApi';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AgentDetailsModal } from './agent-details-modal-simple';
-import { AgentFilters } from './agent-filters';
+import type { AgentFilters } from './agent-filters';
 import { 
-  User, 
   Clock, 
-  CheckCircle, 
-  MessageSquare, 
-  Star, 
   Zap, 
   Eye,
   WifiOff,
@@ -22,8 +17,8 @@ import {
   BrainCircuit,
   Users
 } from 'lucide-react';
-import { Agent, AgentRole, SkillLevel, ConnectionType } from '@/lib/types';
-import { format, formatDistanceToNow } from 'date-fns';
+import { type Agent, AgentRole, SkillLevel, ConnectionType } from '@/lib/types';
+import { formatDistanceToNow } from 'date-fns';
 
 const ROLE_COLORS = {
   [AgentRole.FrontendDev]: 'bg-blue-500 text-white',
@@ -141,7 +136,7 @@ export function AgentGrid({ filters }: AgentGridProps) {
     { staleTime: 10000, refetchInterval: 30000 }
   );
 
-  const agentsList = agents || [];
+  const agentsList = useMemo(() => agents || [], [agents]);
 
   // Filter agents based on provided filters
   const filteredAgents = useMemo(() => {

@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Activity, 
-  Clock, 
-  CheckCircle, 
   AlertTriangle, 
   MessageSquare, 
   GitBranch,
@@ -20,7 +18,6 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useApi } from '@/lib/hooks/useApi';
-import { Changes } from '@/lib/types';
 
 interface ActivityEvent {
   id: string;
@@ -30,7 +27,7 @@ interface ActivityEvent {
   agent?: string;
   timestamp: Date;
   priority: 'high' | 'medium' | 'low';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 function getEventIcon(type: ActivityEvent['type']) {
@@ -105,8 +102,7 @@ export function AgentActivityFeed() {
     (client) => client.getChanges(lastTimestamp),
     { 
       enabled: true, 
-      refetchInterval: isLive ? 5000 : false,
-      refetchOnWindowFocus: false
+      refetchInterval: isLive ? 5000 : false
     }
   );
 

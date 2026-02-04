@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 This changelog follows a simple, human-curated format grouped by date and change type. Prefer clear, user-facing summaries over raw commit messages. Mark breaking changes explicitly.
 
+## 2026-02-04
+
+- Changed
+  - Dashboard Task Management board now uses full-width layout on large displays to show more Kanban columns at once.
+  - Reduced minimum Kanban column width so the full board fits more comfortably on wide screens.
+- Fixed
+  - Dashboard `/agents` page no longer errors due to type-only imports being treated as runtime imports.
+
 ## 2026-02-01
 
 - Added

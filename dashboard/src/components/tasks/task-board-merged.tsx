@@ -3,10 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, User, Clock, GitBranch, Flag, Calendar } from 'lucide-react';
+import { User, GitBranch, Flag, Calendar } from 'lucide-react';
 import { Task, TaskStatus, AgentRole, TaskDifficulty, TaskComplexity } from '@/lib/types';
 import { format } from 'date-fns';
 import { TaskFilters } from './task-filters';
@@ -178,7 +176,7 @@ function TaskColumn({
   const tasksInStatus = tasks.filter(task => task.status === status);
   
   return (
-    <div className="flex-1 min-w-[300px]">
+    <div className="flex-1 min-w-[240px]">
       <Card 
         className={`h-full flex flex-col transition-all ${
           isDragOver ? 'ring-2 ring-blue-400 bg-blue-50/20' : ''

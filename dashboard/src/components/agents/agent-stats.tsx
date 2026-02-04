@@ -3,8 +3,8 @@
 import { useApi } from '@/lib/hooks/useApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Activity, Clock, TrendingUp, Zap, BrainCircuit } from 'lucide-react';
-import { Agent, ConnectionType, SkillLevel } from '@/lib/types';
+import { Users, Activity, TrendingUp, Zap, BrainCircuit } from 'lucide-react';
+import { ConnectionType, SkillLevel } from '@/lib/types';
 
 export function AgentStats() {
   const { data: agents, isLoading } = useApi(

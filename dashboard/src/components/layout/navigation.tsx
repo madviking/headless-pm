@@ -45,12 +45,12 @@ const navigationItems = [
   },
 ];
 
-export function Navigation() {
+export function Navigation({ fullWidth = false }: { fullWidth?: boolean }) {
   const pathname = usePathname();
 
   return (
     <nav className="border-b">
-      <div className="container mx-auto px-4">
+      <div className={cn(fullWidth ? 'w-full px-4' : 'container mx-auto px-4')}>
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">

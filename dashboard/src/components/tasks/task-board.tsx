@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, type HTMLAttributes } from 'react';
 import { useApi } from '@/lib/hooks/useApi';
 import {
   DndContext,
@@ -21,9 +21,8 @@ import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, User, Clock, GitBranch, Flag, Calendar } from 'lucide-react';
+import { User, GitBranch, Flag, Calendar } from 'lucide-react';
 import { Task, TaskStatus, AgentRole, TaskDifficulty, TaskComplexity } from '@/lib/types';
 import { format } from 'date-fns';
 import { TaskFilters } from './task-filters';
@@ -37,7 +36,7 @@ const TASK_STATUSES = [
   { key: TaskStatus.DevDone, label: 'DEV DONE', color: 'bg-green-100 text-green-700' },
   { key: TaskStatus.QADone, label: 'QA DONE', color: 'bg-purple-100 text-purple-700' },
   { key: TaskStatus.DocumentationDone, label: 'DOCS DONE', color: 'bg-orange-100 text-orange-700' },
-  { key: TaskStatus.Committed, label: 'COMMITTED', color: 'bg-emerald-100 text-emerald-700' }
+  { key: TaskStatus.Committed, label: 'COMMITTED', color: 'bg-emerald-100 text-emerald-700' },
 ];
 
 const ROLE_COLORS = {
@@ -59,7 +58,7 @@ const COMPLEXITY_COLORS = {
   [TaskComplexity.Major]: 'bg-orange-500 text-white'
 };
 
-function DraggableTaskCard({ task, onStatusChange, onTaskClick }: { task: Task; onStatusChange?: (task: Task, newStatus: TaskStatus) => void; onTaskClick?: (task: Task) => void }) {
+function DraggableTaskCard({ task, onTaskClick }: { task: Task; onTaskClick?: (task: Task) => void }) {
   const {
     attributes,
     listeners,
@@ -85,7 +84,6 @@ function DraggableTaskCard({ task, onStatusChange, onTaskClick }: { task: Task; 
     <div ref={setNodeRef} style={style}>
       <TaskCard 
         task={task} 
-        onStatusChange={onStatusChange} 
         onTaskClick={onTaskClick}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDragging}
@@ -96,15 +94,13 @@ function DraggableTaskCard({ task, onStatusChange, onTaskClick }: { task: Task; 
 
 function TaskCard({ 
   task, 
-  onStatusChange, 
   onTaskClick,
   dragHandleProps,
   isDragging
 }: { 
   task: Task; 
-  onStatusChange?: (task: Task, newStatus: TaskStatus) => void; 
   onTaskClick?: (task: Task) => void;
-  dragHandleProps?: any;
+  dragHandleProps?: HTMLAttributes<HTMLDivElement>;
   isDragging?: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -215,14 +211,12 @@ function TaskColumn({
   label, 
   color, 
   tasks, 
-  onStatusChange,
   onTaskClick
 }: { 
   status: TaskStatus; 
   label: string; 
   color: string; 
   tasks: Task[]; 
-  onStatusChange?: (task: Task, newStatus: TaskStatus) => void;
   onTaskClick?: (task: Task) => void;
 }) {
   const tasksInStatus = tasks.filter(task => task.status === status);
@@ -236,7 +230,7 @@ function TaskColumn({
   });
 
   return (
-    <div className="flex-1 min-w-[300px]" ref={setNodeRef}>
+    <div className="flex-1 min-w-[240px]" ref={setNodeRef}>
       <Card className={`h-full flex flex-col transition-all ${
         isOver ? 'ring-2 ring-blue-400 bg-blue-50/20' : ''
       }`}>
@@ -257,7 +251,6 @@ function TaskColumn({
                 <DraggableTaskCard 
                   key={task.id} 
                   task={task} 
-                  onStatusChange={onStatusChange}
                   onTaskClick={onTaskClick}
                 />
               ))}
@@ -598,7 +591,6 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
               label={statusConfig.label}
               color={statusConfig.color}
               tasks={filteredTasks}
-              onStatusChange={handleStatusChange}
               onTaskClick={handleTaskClick}
             />
           ))}

@@ -5,7 +5,8 @@ import { PageLayout } from '@/components/layout/page-layout';
 import { AgentGrid } from '@/components/agents/agent-grid';
 import { AgentStats } from '@/components/agents/agent-stats';
 import { AgentActivityFeed } from '@/components/agents/agent-activity-feed-real';
-import { AgentFilters, AgentFilters as AgentFiltersType } from '@/components/agents/agent-filters';
+import { AgentFilters } from '@/components/agents/agent-filters';
+import type { AgentFilters as AgentFiltersType } from '@/components/agents/agent-filters';
 
 export default function AgentsPage() {
   const [filters, setFilters] = useState<AgentFiltersType>({

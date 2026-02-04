@@ -5,16 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  User, 
-  Clock, 
-  Target, 
   Calendar,
   Wifi,
   WifiOff,
   BrainCircuit,
   Users
 } from 'lucide-react';
-import { Agent, AgentRole, SkillLevel, ConnectionType } from '@/lib/types';
+import { type Agent, AgentRole, SkillLevel, ConnectionType, TaskStatus } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useApi } from '@/lib/hooks/useApi';
 
@@ -44,13 +41,13 @@ const CONNECTION_COLORS = {
 };
 
 export function AgentDetailsModal({ agent, isOpen, onClose }: AgentDetailsModalProps) {
-  if (!agent) return null;
+  const agentId = agent?.agent_id;
 
-  // Fetch agent's recent activity
+  // Fetch agent's recent activity (hooks must not be conditional)
   const { data: documents } = useApi(
-    ['documents', agent.id],
-    (client) => client.getDocuments(agent.id),
-    { enabled: isOpen }
+    ['documents', agentId],
+    (client) => client.getDocuments(agentId),
+    { enabled: isOpen && !!agentId }
   );
 
   const { data: tasks } = useApi(
@@ -59,10 +56,12 @@ export function AgentDetailsModal({ agent, isOpen, onClose }: AgentDetailsModalP
     { enabled: isOpen }
   );
 
-  const agentTasks = tasks?.filter(task => 
-    task.assigned_agent_id === agent.id || 
-    task.assigned_role === agent.role
-  ) || [];
+  if (!agent) return null;
+
+  const agentTasks = (tasks || []).filter(task => 
+    (agentId && task.locked_by === agentId) || 
+    task.target_role === agent.role
+  );
 
   const isOnline = agent.last_seen && 
     new Date().getTime() - new Date(agent.last_seen).getTime() < 5 * 60 * 1000;
@@ -78,10 +77,10 @@ export function AgentDetailsModal({ agent, isOpen, onClose }: AgentDetailsModalP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${ROLE_COLORS[agent.role]}`}>
-              {agent.name ? agent.name.charAt(0).toUpperCase() : agent.id.charAt(0).toUpperCase()}
+              {agent.name ? agent.name.charAt(0).toUpperCase() : agent.agent_id.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{agent.name || agent.id}</h2>
+              <h2 className="text-2xl font-bold">{agent.name || agent.agent_id}</h2>
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Badge className={SKILL_COLORS[skillLevel]}>
                   {skillLevel.toUpperCase()} {roleDisplayName}
@@ -170,7 +169,7 @@ export function AgentDetailsModal({ agent, isOpen, onClose }: AgentDetailsModalP
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Agent ID:</span>
-                    <div className="font-medium">{agent.id}</div>
+                    <div className="font-medium">{agent.agent_id}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Role:</span>
@@ -196,7 +195,9 @@ export function AgentDetailsModal({ agent, isOpen, onClose }: AgentDetailsModalP
                   <div>
                     <span className="text-muted-foreground">Created:</span>
                     <div className="font-medium">
-                      {formatDistanceToNow(new Date(agent.created_at), { addSuffix: true })}
+                      {agent.created_at
+                        ? formatDistanceToNow(new Date(agent.created_at), { addSuffix: true })
+                        : 'Unknown'}
                     </div>
                   </div>
                 </div>
@@ -244,7 +245,7 @@ export function AgentDetailsModal({ agent, isOpen, onClose }: AgentDetailsModalP
                       <div key={doc.id} className="p-2 border rounded">
                         <p className="font-medium text-sm">{doc.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {doc.type} • {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}
+                          {doc.doc_type} • {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}
                         </p>
                       </div>
                     ))}
