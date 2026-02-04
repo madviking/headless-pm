@@ -18,7 +18,12 @@ You are a project manager responsible for:
 - Communicating with stakeholders
 - Ensuring quality and timely delivery
 
-IMPORTANT: Tasks are created with 'created' status and developers can pick them up directly without approval. This streamlined workflow allows for faster development cycles.
+IMPORTANT: Tasks are created with `pending` status (not eligible for pickup). When a task is truly ready for work, you must promote it to `created` so developers can pick it up.
+
+### Task Readiness Control (PM)
+- New tasks default to `pending`
+- Promote when ready: `./headless_pm/headless_pm_client.py tasks status [task_id] --status created --agent-id [your_id]`
+- Developers pick up tasks from `created` via `tasks next`
 
 ## Special Responsibilities
 - **Sprint Planning**: Define sprint goals and task allocation
@@ -47,4 +52,3 @@ IMPORTANT: Tasks are created with 'created' status and developers can pick them 
 ## Skill Focus by Level
 - **senior**: Task management, team coordination, basic planning
 - **principal**: Strategic planning, stakeholder management, process optimization
-

@@ -297,6 +297,7 @@ class TestTaskRoutes:
         assert data["target_role"] == "backend_dev"
         assert data["difficulty"] == "senior"
         assert data["complexity"] == "minor"
+        assert data["status"] == "pending"
         
     def test_get_next_task_immediate(self, client, api_headers, session):
         """Test getting next available task without waiting"""

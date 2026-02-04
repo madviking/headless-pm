@@ -16,6 +16,7 @@ const ROLE_COLORS = {
 };
 
 const STATUS_COLORS = {
+  [TaskStatus.Pending]: 'bg-gray-400',
   [TaskStatus.Created]: 'bg-slate-300',
   [TaskStatus.UnderWork]: 'bg-blue-500',
   [TaskStatus.DevDone]: 'bg-yellow-500',

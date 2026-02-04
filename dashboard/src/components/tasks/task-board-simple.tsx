@@ -7,6 +7,7 @@ import { Task, TaskStatus } from '@/lib/types';
 import { useTasks, useUpdateTaskStatus, useAgents } from '@/lib/hooks/useApi';
 
 const TASK_STATUSES = [
+  { key: TaskStatus.Pending, label: 'PENDING', color: 'bg-gray-100 text-gray-700' },
   { key: TaskStatus.Created, label: 'CREATED', color: 'bg-slate-100 text-slate-700' },
   { key: TaskStatus.UnderWork, label: 'UNDER WORK', color: 'bg-blue-100 text-blue-700' },
   { key: TaskStatus.DevDone, label: 'DEV DONE', color: 'bg-green-100 text-green-700' },

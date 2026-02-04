@@ -3,7 +3,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import time
 
-from src.models.models import Agent, Task
+from src.models.models import Agent, Task, Feature
 from src.models.enums import TaskStatus, AgentRole, DifficultyLevel
 from src.api.schemas import TaskResponse
 from src.models.database import engine
@@ -95,9 +95,11 @@ def get_next_task_for_agent(agent: Agent, db: Session) -> Optional[TaskResponse]
     task = db.exec(query.order_by(Task.created_at)).first()
     
     if task:
+        feature = task.feature or db.get(Feature, task.feature_id)
         return TaskResponse(
             id=task.id,
             feature_id=task.feature_id,
+            epic_id=feature.epic_id,
             title=task.title,
             description=task.description,
             created_by=task.creator.agent_id,

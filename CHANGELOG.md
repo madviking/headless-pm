@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 This changelog follows a simple, human-curated format grouped by date and change type. Prefer clear, user-facing summaries over raw commit messages. Mark breaking changes explicitly.
 
+## 2026-02-01
+
+- Added
+  - New task status `pending` to allow PMs to control when tasks become eligible for pickup (`pending → created`).
+  - Migration script for MySQL installs that enforce ENUM values on task/changelog statuses: `migrations/add_pending_status.py`.
+  - Backfill script to move existing unstarted tasks from `created` to `pending`: `migrations/backfill_created_to_pending.py`.
+  - Python client now supports `tasks list` (with status/role filters) to view backlog tasks, including `pending`: `agents/client/headless_pm_client.py`.
+- Documentation
+  - Updated PM agent instructions to reflect the `pending → created` promotion step.
+- Fixed
+  - Fixed MySQL `changelog.old_status/new_status` inserts failing with “Data truncated” by persisting `TaskStatus` values (e.g. `pending`) instead of enum names (e.g. `PENDING`).
+  - API now returns an actionable error if MySQL ENUM columns reject `pending` (points to `migrations/add_pending_status.py`).
+  - Fixed `migrations/add_pending_status.py` MySQL ENUM parsing and added case-aware support for uppercase legacy schemas (adds `PENDING` where required).
+  - Dashboard now surfaces API error `detail` messages for task status updates (helps diagnose 404s like missing task/agent).
+  - Dashboard prevents task moves when the selected agent ID is stale/unregistered (clears localStorage and prompts to select a valid agent).
+  - Dashboard Task Management epic filter now lists epics from the API instead of hardcoded placeholders.
+  - Dashboard Task Management epic filter now filters tasks by the selected epic.
+  - Dashboard now sends a default dev API key when `NEXT_PUBLIC_API_KEY` is unset (development only), preventing “empty dashboard” when the API auth middleware is enabled.
+  - Playwright regression test covering the Task Management epic filter options.
+
 ## 2025-10-17
 
 - Added

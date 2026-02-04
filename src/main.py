@@ -15,6 +15,7 @@ load_dotenv()
 
 from src.models.database import create_db_and_tables
 from src.api.routes import router
+from src.api.public_routes import public_router
 from src.api.document_routes import router as document_router
 from src.api.service_routes import router as service_router
 from src.api.mention_routes import router as mention_router
@@ -238,6 +239,7 @@ app.add_middleware(
 )
 
 # Include routes
+app.include_router(public_router)
 app.include_router(router)
 app.include_router(document_router)
 app.include_router(service_router)
@@ -415,4 +417,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

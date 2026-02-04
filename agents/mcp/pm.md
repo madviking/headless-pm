@@ -25,6 +25,9 @@ To get started, say things like:
 **Creating Tasks:**
 "Please create a minor complexity task titled 'Add user search' for the backend_dev role. The description should be: Implement search with filters for name, email, role. Support pagination."
 
+**Making Tasks Ready (Pending → Created):**
+"Promote task 123 from pending to created so it’s ready for pickup."
+
 **Creating Documents:**
 "Create a sprint planning document titled 'Sprint 5 Planning' with the following content: Sprint goal: Complete user management. Tasks: Auth API, User CRUD, Profile UI. Team capacity: Full."
 

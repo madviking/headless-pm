@@ -79,10 +79,12 @@ Say: "Show me the next available task"
 ## Status Progression
 
 ### Development Flow
-- `created` → `under_work` → `dev_done` → `testing` → `qa_done` → `documentation_done` → `committed` → `completed`
+- `pending` → `created` → `under_work` → `dev_done` → `qa_done` → `documentation_done` → `committed`
 
 ### Key Status Rules
-- Developers can pick up tasks directly from `created` status (no approval needed)
+- New tasks default to `pending` (not eligible for pickup)
+- PMs promote tasks to `created` when they are ready for pickup
+- Developers can pick up tasks directly from `created` status
 - Senior developers can take junior-level tasks when no junior developers are available
 - Only ONE task in `under_work` at a time
 - Always include detailed notes when updating status

@@ -2,6 +2,8 @@ from sqlmodel import Session, select
 from typing import List, Optional
 from datetime import datetime
 
+from sqlalchemy.exc import DataError
+
 from src.models.models import Agent, Task, Feature, Changelog
 from src.models.enums import TaskStatus, AgentRole, TaskType
 from src.api.schemas import (
@@ -11,6 +13,28 @@ from src.api.schemas import (
 from src.api.dependencies import HTTPException
 from src.services.mention_service import create_mentions_for_task
 from src.services.task_service import get_next_task_for_agent
+
+
+def _raise_actionable_mysql_enum_error(exc: DataError) -> None:
+    """
+    Translate common MySQL ENUM strict-mode errors into actionable API responses.
+
+    In MySQL strict mode, inserting a non-member value into an ENUM column raises:
+      (1265, "Data truncated for column '...' at row ...")
+    """
+    msg = str(getattr(exc, "orig", exc))
+    if "Data truncated for column" not in msg:
+        return
+
+    raise HTTPException(
+        status_code=500,
+        detail=(
+            "Database rejected the task status value while writing a changelog row. "
+            "This usually means your MySQL `changelog.old_status/new_status` columns are ENUMs "
+            "that don't include the new `pending` status. Run `migrations/add_pending_status.py` "
+            "against the same DB the API is using, then retry."
+        ),
+    ) from exc
 
 
 def create_task(request: TaskCreateRequest, agent_id: str, db: Session) -> TaskResponse:
@@ -56,17 +80,23 @@ def create_task(request: TaskCreateRequest, agent_id: str, db: Session) -> TaskR
     # Create initial changelog
     changelog = Changelog(
         task_id=task.id,
-        old_status=TaskStatus.CREATED,
-        new_status=TaskStatus.CREATED,
+        old_status=TaskStatus.PENDING,
+        new_status=TaskStatus.PENDING,
         changed_by=creator.agent_id,
-        notes="Task created"
+        notes="Task created (pending)"
     )
     db.add(changelog)
-    db.commit()
-    
+    try:
+        db.commit()
+    except DataError as e:
+        db.rollback()
+        _raise_actionable_mysql_enum_error(e)
+        raise
+
     return TaskResponse(
         id=task.id,
         feature_id=task.feature_id,
+        epic_id=feature.epic_id,
         title=task.title,
         description=task.description,
         created_by=task.creator.agent_id,
@@ -110,6 +140,7 @@ def list_tasks(status: Optional[TaskStatus], role: Optional[AgentRole], db: Sess
         TaskResponse(
             id=task.id,
             feature_id=task.feature_id,
+            epic_id=task.feature.epic_id if task.feature else db.get(Feature, task.feature_id).epic_id,
             title=task.title,
             description=task.description,
             created_by=task.creator.agent_id if task.creator else "unknown",
@@ -176,6 +207,7 @@ def lock_task(task_id: int, agent_id: str, db: Session) -> TaskResponse:
     return TaskResponse(
         id=task.id,
         feature_id=task.feature_id,
+        epic_id=task.feature.epic_id if task.feature else db.get(Feature, task.feature_id).epic_id,
         title=task.title,
         description=task.description,
         created_by=task.creator.agent_id,
@@ -258,13 +290,19 @@ def update_task_status(
     )
     db.add(changelog)
     
-    db.commit()
+    try:
+        db.commit()
+    except DataError as e:
+        db.rollback()
+        _raise_actionable_mysql_enum_error(e)
+        raise
     db.refresh(task)
     
     # Create the current task response
     task_response = TaskResponse(
         id=task.id,
         feature_id=task.feature_id,
+        epic_id=task.feature.epic_id if task.feature else db.get(Feature, task.feature_id).epic_id,
         title=task.title,
         description=task.description,
         created_by=task.creator.agent_id,

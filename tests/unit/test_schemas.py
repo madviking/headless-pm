@@ -147,6 +147,7 @@ class TestResponseSchemas:
         data = {
             "id": 1,
             "feature_id": 1,
+            "epic_id": 1,
             "title": "Test Task",
             "description": "Test description",
             "created_by": "test_agent",

@@ -86,7 +86,7 @@ def test_pid_conflict_detection_comprehensive():
     test_legacy_clients_conflicts()
 
     print("\n🎉 All PID conflict detection edge case tests passed!")
-    return True
+    # Do not return a value; pytest treats non-None returns as failures in pytest>=8
 
 
 if __name__ == "__main__":

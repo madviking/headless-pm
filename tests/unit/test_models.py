@@ -4,6 +4,7 @@ Unit tests for database models
 import pytest
 from datetime import datetime
 from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy import text
 from src.models.models import Agent, Epic, Feature, Task, Document, Service, Mention, TaskEvaluation, Changelog
 from src.models.enums import TaskStatus, AgentRole, DifficultyLevel, TaskComplexity, ConnectionType, TaskType
 from src.models.document_enums import DocumentType, ServiceStatus
@@ -32,6 +33,7 @@ class TestEnums:
     
     def test_task_status_enum(self):
         """Test TaskStatus enum values"""
+        assert TaskStatus.PENDING == "pending"
         assert TaskStatus.CREATED == "created"
         assert TaskStatus.UNDER_WORK == "under_work"
         assert TaskStatus.DEV_DONE == "dev_done"
@@ -191,6 +193,86 @@ class TestModels:
         assert task.complexity == TaskComplexity.MINOR
         assert task.status == TaskStatus.CREATED
         assert task.branch == "main"
+
+    def test_task_and_changelog_status_store_values_and_read_legacy_names(self, session):
+        """Ensure DB stores enum values (lowercase) and can read legacy enum names (uppercase)."""
+        agent = Agent(
+            agent_id="test_creator_legacy",
+            role=AgentRole.PM,
+            level=DifficultyLevel.SENIOR,
+        )
+        session.add(agent)
+        session.commit()
+        session.refresh(agent)
+
+        epic = Epic(name="Test Epic", description="Test description")
+        session.add(epic)
+        session.commit()
+        session.refresh(epic)
+
+        feature = Feature(epic_id=epic.id, name="Test Feature", description="Test feature")
+        session.add(feature)
+        session.commit()
+        session.refresh(feature)
+
+        task = Task(
+            feature_id=feature.id,
+            title="Test Task",
+            description="Test task description",
+            created_by_id=agent.id,
+            target_role=AgentRole.BACKEND_DEV,
+            difficulty=DifficultyLevel.SENIOR,
+            complexity=TaskComplexity.MINOR,
+            branch="main",
+            status=TaskStatus.PENDING,
+        )
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+
+        raw_task_status = session.execute(
+            text("SELECT status FROM task WHERE id = :id"),
+            {"id": task.id},
+        ).scalar_one()
+        assert raw_task_status == "pending"
+
+        session.execute(text("UPDATE task SET status = 'PENDING' WHERE id = :id"), {"id": task.id})
+        session.commit()
+        session.expire_all()
+
+        legacy_task = session.get(Task, task.id)
+        assert legacy_task is not None
+        assert legacy_task.status == TaskStatus.PENDING
+
+        changelog = Changelog(
+            task_id=task.id,
+            old_status=TaskStatus.PENDING,
+            new_status=TaskStatus.CREATED,
+            changed_by=agent.agent_id,
+        )
+        session.add(changelog)
+        session.commit()
+        session.refresh(changelog)
+
+        raw_changelog = session.execute(
+            text("SELECT old_status, new_status FROM changelog WHERE id = :id"),
+            {"id": changelog.id},
+        ).one()
+        assert raw_changelog == ("pending", "created")
+
+        session.execute(
+            text(
+                "UPDATE changelog SET old_status = 'PENDING', new_status = 'CREATED' WHERE id = :id"
+            ),
+            {"id": changelog.id},
+        )
+        session.commit()
+        session.expire_all()
+
+        legacy_changelog = session.get(Changelog, changelog.id)
+        assert legacy_changelog is not None
+        assert legacy_changelog.old_status == TaskStatus.PENDING
+        assert legacy_changelog.new_status == TaskStatus.CREATED
         
     def test_document_model_creation(self, session):
         """Test Document model creation"""

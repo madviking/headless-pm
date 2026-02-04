@@ -67,6 +67,7 @@ class ProjectContextResponse(BaseModel):
 class TaskResponse(BaseModel):
     id: int
     feature_id: int
+    epic_id: int
     title: str
     description: str
     created_by: str  # agent_id

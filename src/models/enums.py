@@ -1,6 +1,7 @@
 from enum import Enum
 
 class TaskStatus(str, Enum):
+    PENDING = "pending"
     CREATED = "created"
     UNDER_WORK = "under_work"
     DEV_DONE = "dev_done"

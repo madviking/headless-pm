@@ -133,6 +133,15 @@ class HeadlessPMClient:
             "branch": branch
         }
         return self._request("POST", "/api/v1/tasks/create", json=data, params={"agent_id": agent_id})
+
+    def list_tasks(self, status: Optional[str] = None, role: Optional[str] = None):
+        """List tasks with optional status/role filtering"""
+        params: Dict[str, Any] = {}
+        if status:
+            params["status"] = status
+        if role:
+            params["role"] = role
+        return self._request("GET", "/api/v1/tasks", params=params)
     
     def get_next_task(self, role: str, level: str):
         """Get next available task for role/level"""
@@ -267,14 +276,6 @@ def format_output(data: Any):
 def validate_args(args, parser):
     """Validate arguments and provide helpful error messages"""
     
-    # Check for common mistake: trying to use "tasks list"
-    if args.command == "tasks" and hasattr(args, 'task_action') and args.task_action == "list":
-        print("Error: There is no 'tasks list' command")
-        print("\nTo get available tasks, use: python3 headless_pm_client.py tasks next --role YOUR_ROLE --level YOUR_LEVEL")
-        print("Example: python3 headless_pm_client.py tasks next --role backend_dev --level senior")
-        print("\nThis will return the next available task for your role and skill level.")
-        sys.exit(1)
-    
     # Custom validation for tasks next command
     if args.command == "tasks" and args.task_action == "next":
         if not hasattr(args, 'role') or not args.role:
@@ -310,7 +311,7 @@ def validate_args(args, parser):
         if not hasattr(args, 'status') or not args.status:
             print("Error: tasks status requires --status argument")
             print("Example: python3 headless_pm_client.py tasks status 123 --status dev_done --agent-id 'backend_dev_001'")
-            print("\nAvailable statuses: created, under_work, dev_done, qa_done, documentation_done, committed")
+            print("\nAvailable statuses: pending, created, under_work, dev_done, qa_done, documentation_done, committed, evaluation, approved")
             sys.exit(1)
 
 def main():
@@ -377,7 +378,11 @@ All agents should follow these common instructions.
 ## Status Progression
 
 ### Development Flow
-- `created` → `under_work` → `dev_done` → `qa_done` → `documentation_done` → `committed`
+- `pending` → `created` → `under_work` → `dev_done` → `qa_done` → `documentation_done` → `committed`
+
+### PM Control (Task Readiness)
+- Newly created tasks default to `pending` (not eligible for pickup via `tasks next`)
+- When ready for pickup, promote: `python3 headless_pm_client.py tasks status TASK_ID --status created --agent-id "pm_001"`
 
 ### Key Status Rules
 - Only ONE task in `under_work` at a time
@@ -480,6 +485,9 @@ QUICK START - COMMON COMMANDS WITH EXAMPLES
 📋 WORKING WITH TASKS:
   # Get your next task (REQUIRED: --role and --level)
   python3 headless_pm_client.py tasks next --role backend_dev --level senior
+
+  # List tasks (useful for viewing pending backlog)
+  python3 headless_pm_client.py tasks list --status pending --role backend_dev
   
   # Lock a task (REQUIRED: task_id and --agent-id)
   python3 headless_pm_client.py tasks lock 123 --agent-id "backend_dev_001"
@@ -490,7 +498,7 @@ QUICK START - COMMON COMMANDS WITH EXAMPLES
   # Add comment to task
   python3 headless_pm_client.py tasks comment 123 --comment "Working on this @qa_001" --agent-id "backend_dev_001"
 
-  # NOTE: There is NO 'tasks list' command - use 'tasks next' to get available tasks
+  # NOTE: `tasks next` returns the next *eligible* task (typically `created`). Use `tasks list` to view backlog (including `pending`).
 
 📄 CREATING DOCUMENTS:
   # Create an update document
@@ -529,6 +537,7 @@ FEATURE MANAGEMENT:
   
 TASK MANAGEMENT:
   tasks create          - Create a new task
+  tasks list            - List tasks (supports pending backlog visibility)
   tasks next            - Get next available task for your role/level (REQUIRES: --role, --level)
   tasks lock            - Lock a task to work on it (REQUIRES: task_id, --agent-id)
   tasks status          - Update task status (REQUIRES: task_id, --status, --agent-id)
@@ -651,6 +660,32 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
                            choices=["major", "minor"])
     task_create.add_argument("--branch", required=True, help="Git branch name")
     task_create.add_argument("--agent-id", required=True, help="Creating agent ID")
+
+    task_list = task_sub.add_parser(
+        "list",
+        help="List tasks (supports pending backlog visibility)",
+        epilog="Example: python3 headless_pm_client.py tasks list --status pending --role backend_dev",
+    )
+    task_list.add_argument(
+        "--status",
+        choices=[
+            "pending",
+            "created",
+            "under_work",
+            "dev_done",
+            "qa_done",
+            "documentation_done",
+            "committed",
+            "evaluation",
+            "approved",
+        ],
+        help="Filter by task status",
+    )
+    task_list.add_argument(
+        "--role",
+        choices=["frontend_dev", "backend_dev", "qa", "architect", "pm"],
+        help="Filter by target role",
+    )
     
     task_next = task_sub.add_parser("next", 
                                     help="Get next available task for your role/level",
@@ -673,8 +708,9 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
                                      epilog="Example: python3 headless_pm_client.py tasks status 123 --status dev_done --agent-id 'backend_dev_001' --notes 'Implementation complete'")
     task_status.add_argument("task_id", type=int, help="Task ID")
     task_status.add_argument("--status", required=True, 
-                           choices=["created", "under_work", "dev_done", 
-                                   "qa_done", "documentation_done", "committed"],
+                           choices=["pending", "created", "under_work", "dev_done", 
+                                   "qa_done", "documentation_done", "committed",
+                                   "evaluation", "approved"],
                            help="New task status (REQUIRED)")
     task_status.add_argument("--agent-id", required=True, help="Your agent ID (REQUIRED)")
     task_status.add_argument("--notes", help="Optional notes about the status change")
@@ -824,6 +860,8 @@ For detailed help on any command, use: python3 headless_pm_client.py <command> -
                 result = client.create_task(args.feature_id, args.title, args.description,
                                           args.target_role, args.difficulty, args.complexity,
                                           args.branch, args.agent_id)
+            elif args.task_action == "list":
+                result = client.list_tasks(status=args.status, role=args.role)
             elif args.task_action == "next":
                 result = client.get_next_task(args.role, args.level)
             elif args.task_action == "lock":

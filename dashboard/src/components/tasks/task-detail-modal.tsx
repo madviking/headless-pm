@@ -46,6 +46,7 @@ const COMPLEXITY_COLORS = {
 };
 
 const STATUS_COLORS = {
+  [TaskStatus.Pending]: 'bg-gray-100 text-gray-700',
   [TaskStatus.Created]: 'bg-slate-100 text-slate-700',
   [TaskStatus.UnderWork]: 'bg-blue-100 text-blue-700',
   [TaskStatus.DevDone]: 'bg-green-100 text-green-700',

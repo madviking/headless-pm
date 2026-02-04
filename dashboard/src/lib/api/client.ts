@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import { 
   Agent, Epic, Feature, Task, TaskComment, Document, 
   Mention, Service, ProjectContext, Changes,
@@ -9,7 +9,8 @@ export class HeadlessPMClient {
   private client: AxiosInstance;
 
   constructor(baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6969', apiKey?: string) {
-    const apiKeyToUse = apiKey || process.env.NEXT_PUBLIC_API_KEY;
+    const defaultDevApiKey = process.env.NODE_ENV !== 'production' ? 'XXXXXX' : undefined;
+    const apiKeyToUse = apiKey || process.env.NEXT_PUBLIC_API_KEY || defaultDevApiKey;
     this.client = axios.create({
       baseURL: `${baseURL}/api/v1`,
       headers: {
@@ -115,10 +116,15 @@ export class HeadlessPMClient {
       return data;
     } catch (error) {
       console.error('UpdateTaskStatus error:', error);
-      if (error.response) {
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
-        console.error('Error response headers:', error.response.headers);
+      const axiosError = error as AxiosError<any>;
+      const detail = axiosError.response?.data?.detail;
+      if (axiosError.response) {
+        console.error('Error response data:', axiosError.response.data);
+        console.error('Error response status:', axiosError.response.status);
+        console.error('Error response headers:', axiosError.response.headers);
+      }
+      if (typeof detail === 'string' && detail.trim().length > 0) {
+        throw new Error(detail);
       }
       throw error;
     }

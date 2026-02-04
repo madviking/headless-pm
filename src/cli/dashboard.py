@@ -95,6 +95,7 @@ class HeadlessPMDashboard:
         table.add_column("Assignee", style="yellow", width=12, no_wrap=True)
         
         status_colors = {
+            "pending": "bright_black",
             "created": "red",
             "evaluation": "yellow", 
             "approved": "blue",
@@ -107,6 +108,7 @@ class HeadlessPMDashboard:
         
         # Custom status display names
         status_display_names = {
+            "pending": "Pending",
             "approved": "Ready for Pickup",
             "documentation_done": "Docs Done",
             "under_work": "In Progress"

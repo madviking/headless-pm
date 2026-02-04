@@ -31,6 +31,7 @@ import { TaskDetailModal } from './task-detail-modal';
 import { HeadlessPMClient } from '@/lib/api/client';
 
 const TASK_STATUSES = [
+  { key: TaskStatus.Pending, label: 'PENDING', color: 'bg-gray-100 text-gray-700' },
   { key: TaskStatus.Created, label: 'CREATED', color: 'bg-slate-100 text-slate-700' },
   { key: TaskStatus.UnderWork, label: 'UNDER WORK', color: 'bg-blue-100 text-blue-700' },
   { key: TaskStatus.DevDone, label: 'DEV DONE', color: 'bg-green-100 text-green-700' },
@@ -326,10 +327,18 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
 
   // Save selected agent ID to localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined' && selectedAgentId) {
+    if (typeof window === 'undefined') return;
+    if (selectedAgentId) {
       localStorage.setItem('agent_id', selectedAgentId);
+    } else {
+      localStorage.removeItem('agent_id');
     }
   }, [selectedAgentId]);
+
+  const isRegisteredAgentId = useCallback(
+    (agentId: string) => agents?.some((a) => a.agent_id === agentId) ?? false,
+    [agents]
+  );
 
   // Only update localTasks when tasks actually change to prevent infinite loops
   useEffect(() => {
@@ -395,6 +404,14 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
       alert('Please select an agent ID to update task status');
       throw new Error('No agent ID selected');
     }
+
+    if (!isRegisteredAgentId(agentId)) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('agent_id');
+      }
+      alert(`Selected agent '${agentId}' is not registered in the API. Please pick an agent from the dropdown.`);
+      throw new Error(`Selected agent '${agentId}' is not registered`);
+    }
     
     try {
       const apiClient = new HeadlessPMClient();
@@ -404,7 +421,7 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
       console.error('Failed to update task status:', error);
       throw error;
     }
-  }, [selectedAgentId]);
+  }, [selectedAgentId, isRegisteredAgentId]);
 
   const handleTaskClick = useCallback((task: Task) => {
     setSelectedTask(task);
@@ -436,6 +453,11 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
     if (!agentId) {
       alert('Please select an agent to move tasks. Use the dropdown above to select an agent.');
       return; // Prevent the drop
+    }
+    if (!isRegisteredAgentId(agentId)) {
+      setSelectedAgentId('');
+      alert(`Selected agent '${agentId}' is not registered in the API. Please pick an agent from the dropdown.`);
+      return;
     }
 
     // Extract task ID from the string ID format "task-123"
@@ -509,7 +531,7 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
       console.error('Failed to update task status:', error);
       alert(`Failed to update task status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, [localTasks, mutate, handleStatusChange, selectedAgentId]);
+  }, [localTasks, mutate, handleStatusChange, selectedAgentId, isRegisteredAgentId]);
 
   if (isLoading && localTasks.length === 0) {
     return (

@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from .enums import TaskStatus, AgentRole, DifficultyLevel, TaskComplexity, ConnectionType
 from .document_enums import DocumentType, ServiceStatus
+from .sa_types import EnumValueString
 
 class Agent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -43,7 +44,10 @@ class Task(SQLModel, table=True):
     difficulty: DifficultyLevel
     complexity: TaskComplexity = Field(default=TaskComplexity.MAJOR)
     branch: str
-    status: TaskStatus = Field(default=TaskStatus.CREATED)
+    status: TaskStatus = Field(
+        default=TaskStatus.PENDING,
+        sa_column=Column(EnumValueString(TaskStatus, length=32)),
+    )
     locked_by_id: Optional[int] = Field(default=None, foreign_key="agent.id")
     locked_at: Optional[datetime] = None
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
@@ -70,8 +74,8 @@ class TaskEvaluation(SQLModel, table=True):
 class Changelog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     task_id: int = Field(foreign_key="task.id")
-    old_status: TaskStatus
-    new_status: TaskStatus
+    old_status: TaskStatus = Field(sa_column=Column(EnumValueString(TaskStatus, length=32)))
+    new_status: TaskStatus = Field(sa_column=Column(EnumValueString(TaskStatus, length=32)))
     changed_by: str  # agent_id
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     changed_at: datetime = Field(default_factory=datetime.utcnow)

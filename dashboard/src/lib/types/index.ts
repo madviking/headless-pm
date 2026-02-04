@@ -20,6 +20,7 @@ export enum ConnectionType {
 }
 
 export enum TaskStatus {
+  Pending = "pending",
   Created = "created",
   UnderWork = "under_work",
   DevDone = "dev_done",
@@ -93,6 +94,7 @@ export interface Feature {
 export interface Task {
   id: number;
   feature_id: number;
+  epic_id: number;
   title: string;
   description?: string;
   target_role: AgentRole;           // Fixed: was assigned_role

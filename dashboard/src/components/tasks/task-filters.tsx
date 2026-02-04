@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, X } from 'lucide-react';
 import { AgentRole, TaskStatus, TaskDifficulty, TaskComplexity } from '@/lib/types';
+import { useEpics } from '@/lib/hooks/useApi';
 
 interface TaskFiltersProps {
   onFiltersChange?: (filters: TaskFilters) => void;
@@ -26,6 +27,7 @@ export interface TaskFilters {
 
 export function TaskFilters({ onFiltersChange }: TaskFiltersProps) {
   const [filters, setFilters] = useState<TaskFilters>({});
+  const { data: epics = [], isLoading: epicsLoading, error: epicsError } = useEpics();
 
   // Use useEffect to call onFiltersChange after state updates
   useEffect(() => {
@@ -64,11 +66,26 @@ export function TaskFilters({ onFiltersChange }: TaskFiltersProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Epics</SelectItem>
-                <SelectItem value="authentication">Authentication</SelectItem>
-                <SelectItem value="payment">Payment System</SelectItem>
-                <SelectItem value="admin">Admin Panel</SelectItem>
-                <SelectItem value="reporting">Reporting</SelectItem>
-                <SelectItem value="mobile">Mobile App</SelectItem>
+                {epicsLoading && (
+                  <SelectItem value="__loading" disabled>
+                    Loading epics...
+                  </SelectItem>
+                )}
+                {!!epicsError && (
+                  <SelectItem value="__error" disabled>
+                    Failed to load epics
+                  </SelectItem>
+                )}
+                {!epicsLoading && !epicsError && epics.length === 0 && (
+                  <SelectItem value="__empty" disabled>
+                    No epics found
+                  </SelectItem>
+                )}
+                {epics.map((epic) => (
+                  <SelectItem key={epic.id} value={String(epic.id)}>
+                    {epic.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -119,6 +136,7 @@ export function TaskFilters({ onFiltersChange }: TaskFiltersProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value={TaskStatus.Pending}>Pending</SelectItem>
                 <SelectItem value={TaskStatus.Created}>Created</SelectItem>
                 <SelectItem value={TaskStatus.UnderWork}>Under Work</SelectItem>
                 <SelectItem value={TaskStatus.DevDone}>Dev Done</SelectItem>

@@ -14,6 +14,7 @@ import { TaskDetailModal } from './task-detail-modal';
 import { useTasks, useUpdateTaskStatus, useAgents } from '@/lib/hooks/useApi';
 
 const TASK_STATUSES = [
+  { key: TaskStatus.Pending, label: 'PENDING', color: 'bg-gray-100 text-gray-700' },
   { key: TaskStatus.Created, label: 'CREATED', color: 'bg-slate-100 text-slate-700' },
   { key: TaskStatus.UnderWork, label: 'UNDER WORK', color: 'bg-blue-100 text-blue-700' },
   { key: TaskStatus.DevDone, label: 'DEV DONE', color: 'bg-green-100 text-green-700' },
@@ -252,6 +253,10 @@ export function TaskBoard({ filters = {} }: { filters?: TaskFilters }) {
 
   // Apply filters to tasks
   const filteredTasks = tasks.filter(task => {
+    if (filters.epic) {
+      const selectedEpicId = Number(filters.epic);
+      if (!Number.isNaN(selectedEpicId) && task.epic_id !== selectedEpicId) return false;
+    }
     if (filters.role && task.target_role !== filters.role) return false;
     if (filters.difficulty && task.difficulty !== filters.difficulty) return false;
     if (filters.status && task.status !== filters.status) return false;
